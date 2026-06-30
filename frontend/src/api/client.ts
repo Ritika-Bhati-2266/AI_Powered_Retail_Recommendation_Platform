@@ -115,4 +115,16 @@ export const apiClient = {
   getCurrencies(): Promise<Record<string, string>> {
     return request<Record<string, string>>('/customers/currencies');
   },
+
+  getRecentlyViewed(customerId: string, limit: number = 10): Promise<Product[]> {
+    return request<Product[]>(
+      `/customers/${encodeURIComponent(customerId)}/recently-viewed?limit=${limit}`
+    );
+  },
+
+  getContinueShopping(customerId: string, limit: number = 10): Promise<Product[]> {
+    return request<Product[]>(
+      `/customers/${encodeURIComponent(customerId)}/continue-shopping?limit=${limit}`
+    );
+  },
 };

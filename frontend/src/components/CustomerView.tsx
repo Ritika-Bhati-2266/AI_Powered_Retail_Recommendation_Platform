@@ -13,11 +13,13 @@ import {
   Apple,
   Loader2,
   DollarSign,
+  Clock,
+  ShoppingBag,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
 import ProductSearch from './ProductSearch';
 import { formatPrice } from '../utils/formatPrice';
-import type { CustomerFull, Recommendation } from '../types';
+import type { CustomerFull, Recommendation, Product } from '../types';
 
 // Reuse the category icon/color mapping from ProductSearch
 const CATEGORY_ICONS: Record<string, typeof Smartphone> = {
@@ -57,6 +59,7 @@ function getCategoryIcon(category: string) {
   return CATEGORY_ICONS[category] || Package;
 }
 
+/** Shared card for recommendation products (includes reason_text + score bar). */
 function RecCard({ product }: { product: Recommendation }) {
   const Icon = getCategoryIcon(product.category);
   const colorClass = CATEGORY_COLORS[product.category] || 'from-slate-500/20 to-slate-600/10 border-slate-700/30';
@@ -88,13 +91,90 @@ function RecCard({ product }: { product: Recommendation }) {
           {product.name}
         </h3>
         <p className="text-[10px] text-slate-500 mt-0.5">{product.brand}</p>
+
+        {/* Reason text — made more prominent */}
+        {product.reason_text && (
+          <p className="mt-1.5 text-[11px] font-medium text-accent-300 bg-accent-500/10 border border-accent-500/20 rounded px-1.5 py-1 leading-tight line-clamp-2">
+            {product.reason_text}
+          </p>
+        )}
+
+        {/* Score bar */}
+        <div className="flex items-center gap-2 mt-1.5">
+          <span className="text-[10px] text-slate-500">Score</span>
+          <div className="flex-1 h-1 bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary-500 rounded-full transition-all"
+              style={{ width: `${Math.round(product.score * 100)}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium">
+            {Math.round(product.score * 100)}%
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between mt-1.5">
+          <span className="text-sm font-bold text-accent-400">{formatPrice(product.price, product.symbol)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Shared card for basic product display (no score/reason). */
+function ProductCard({ product }: { product: Product | Recommendation }) {
+  const Icon = getCategoryIcon(product.category);
+  const colorClass = CATEGORY_COLORS[product.category] || 'from-slate-500/20 to-slate-600/10 border-slate-700/30';
+  const iconColor = CATEGORY_ICON_COLORS[product.category] || 'text-slate-400';
+
+  return (
+    <div className="card card-hover overflow-hidden group">
+      <div className={`h-28 bg-gradient-to-br ${colorClass} flex items-center justify-center relative overflow-hidden`}>
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.name}
+            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-300"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+        ) : null}
+        <div className={`${product.image_url ? 'hidden' : 'flex'} items-center justify-center`}>
+          <Icon className={`w-10 h-10 ${iconColor} opacity-60 group-hover:opacity-90 transition-opacity`} />
+        </div>
+        <span className="absolute top-2 right-2 bg-slate-900/70 backdrop-blur-sm text-[10px] font-medium text-slate-300 px-2 py-0.5 rounded-full border border-slate-700/50">
+          {product.category}
+        </span>
+      </div>
+      <div className="p-3">
+        <h3 className="text-xs font-semibold text-slate-100 truncate group-hover:text-primary-300 transition-colors" title={product.name}>
+          {product.name}
+        </h3>
+        <p className="text-[10px] text-slate-500 mt-0.5">{product.brand}</p>
         <div className="flex items-center justify-between mt-2">
           <span className="text-sm font-bold text-accent-400">{formatPrice(product.price, product.symbol)}</span>
         </div>
-        <span className="inline-block mt-1.5 text-[10px] font-medium text-primary-400 bg-primary-500/10 px-1.5 py-0.5 rounded">
-          {product.reason_text}
-        </span>
       </div>
+    </div>
+  );
+}
+
+/** Skeleton placeholder cards for loading state. */
+function SkeletonGrid({ count = 5 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="card overflow-hidden">
+          <div className="skeleton h-28 rounded-none" />
+          <div className="p-3 space-y-2">
+            <div className="skeleton h-3 w-3/4" />
+            <div className="skeleton h-2 w-1/2" />
+            <div className="skeleton h-4 w-1/3 mt-2" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -111,6 +191,14 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   const [recError, setRecError] = useState(false);
   const [currencies, setCurrencies] = useState<Record<string, string>>({});
   const [updatingCurrency, setUpdatingCurrency] = useState(false);
+
+  // Recently viewed
+  const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
+  const [loadingRecent, setLoadingRecent] = useState(true);
+
+  // Continue shopping
+  const [continueShopping, setContinueShopping] = useState<Product[]>([]);
+  const [loadingContinue, setLoadingContinue] = useState(true);
 
   useEffect(() => {
     apiClient.getCurrencies().then(setCurrencies).catch(() => {});
@@ -133,6 +221,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
     }
   }, [customer.customer_id, customer.currency]);
 
+  // Fetch recommendations
   useEffect(() => {
     let cancelled = false;
     setLoadingRecs(true);
@@ -147,6 +236,40 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
       })
       .finally(() => {
         if (!cancelled) setLoadingRecs(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [customer.customer_id]);
+
+  // Fetch recently viewed
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingRecent(true);
+
+    apiClient.getRecentlyViewed(customer.customer_id)
+      .then((data) => {
+        if (!cancelled) setRecentlyViewed(data);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingRecent(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [customer.customer_id]);
+
+  // Fetch continue shopping
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingContinue(true);
+
+    apiClient.getContinueShopping(customer.customer_id)
+      .then((data) => {
+        if (!cancelled) setContinueShopping(data);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoadingContinue(false);
       });
 
     return () => { cancelled = true; };
@@ -206,20 +329,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
             <h2 className="text-lg font-semibold text-slate-100">Recommended for You</h2>
           </div>
 
-          {loadingRecs && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="card overflow-hidden">
-                  <div className="skeleton h-28 rounded-none" />
-                  <div className="p-3 space-y-2">
-                    <div className="skeleton h-3 w-3/4" />
-                    <div className="skeleton h-2 w-1/2" />
-                    <div className="skeleton h-4 w-1/3 mt-2" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {loadingRecs && <SkeletonGrid count={5} />}
 
           {!loadingRecs && recError && (
             <div className="card p-6 text-center">
@@ -241,6 +351,54 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {recommendations.slice(0, 10).map((rec) => (
                 <RecCard key={rec.product_id} product={rec} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Recently Viewed */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-5 h-5 text-cyan-400" />
+            <h2 className="text-lg font-semibold text-slate-100">Recently Viewed</h2>
+          </div>
+
+          {loadingRecent && <SkeletonGrid count={5} />}
+
+          {!loadingRecent && recentlyViewed.length === 0 && (
+            <div className="card p-6 text-center">
+              <p className="text-sm text-slate-400">No recently viewed products yet. Start browsing!</p>
+            </div>
+          )}
+
+          {!loadingRecent && recentlyViewed.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {recentlyViewed.map((product) => (
+                <ProductCard key={product.product_id} product={product} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Continue Shopping */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <ShoppingBag className="w-5 h-5 text-amber-400" />
+            <h2 className="text-lg font-semibold text-slate-100">Continue Shopping</h2>
+          </div>
+
+          {loadingContinue && <SkeletonGrid count={5} />}
+
+          {!loadingContinue && continueShopping.length === 0 && (
+            <div className="card p-6 text-center">
+              <p className="text-sm text-slate-400">No items in your cart. Add something to get started!</p>
+            </div>
+          )}
+
+          {!loadingContinue && continueShopping.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {continueShopping.map((product) => (
+                <ProductCard key={product.product_id} product={product} />
               ))}
             </div>
           )}
