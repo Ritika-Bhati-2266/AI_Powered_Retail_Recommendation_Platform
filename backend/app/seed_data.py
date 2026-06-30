@@ -4,6 +4,7 @@ Generates realistic synthetic customers, products, events, and initial segments.
 """
 import uuid
 import random
+import hashlib
 import logging
 from datetime import datetime, timezone, timedelta
 
@@ -88,6 +89,69 @@ EVENT_WEIGHTS = {
 
 SEGMENTS = ["high_value", "bargain_hunter", "new_user", "lapsed", "cart_abandoner", "brand_loyalist", "window_shopper", "power_user"]
 
+# ── Category-relevant product image pools ──────────────────────────────
+# Each category has a pool of verified Unsplash photo IDs that visually
+# represent that category (gadgets for Electronics, fitness for Sports, etc.)
+# Images are 400x300 crop via Unsplash CDN. A stable hash of the product_id
+# deterministically selects which image from the pool a product gets.
+CATEGORY_IMAGE_POOL = {
+    "Electronics": [
+        "photo-1519389950473-47ba0277781c",
+        "photo-1498050108023-c5249f4df085",
+        "photo-1505740420928-5e560c06d30e",
+        "photo-1523275335684-37898b6baf30",
+    ],
+    "Clothing": [
+        "photo-1523381210434-271e8be1f52b",
+        "photo-1490481651871-ab68de25d43d",
+        "photo-1460353581641-37baddab0fa2",
+        "photo-1556905055-8f358a7a47b2",
+        "photo-1568252542512-9fe8fe9c87bb",
+        "photo-1593030761757-71fae45fa0e7",
+        "photo-1576566588028-4147f3842f27",
+    ],
+    "Home & Kitchen": [
+        "photo-1556909114-f6e7ad7d3136",
+        "photo-1507003211169-0a1dd7228f2d",
+        "photo-1556909172-54557c7e4fb7",
+        "photo-1484101403633-562f891dc89a",
+        "photo-1493663284031-b7e3aefcae8e",
+        "photo-1540189549336-e6e99c3679fe",
+        "photo-1555041469-a586c61ea9bc",
+    ],
+    "Books": [
+        "photo-1512820790803-83ca734da794",
+        "photo-1524995997946-a1c2e315a42f",
+        "photo-1507842217343-583bb7270b66",
+        "photo-1516979187457-637abb4f9353",
+        "photo-1456513080510-7bf3a84b82f8",
+    ],
+    "Sports": [
+        "photo-1517838277536-f5f99be501cd",
+        "photo-1571902943202-507ec2618e8f",
+        "photo-1552674605-db6ffd4facb5",
+        "photo-1571019613454-1cb2f99b2d8b",
+        "photo-1534438327276-14e5300c3a48",
+    ],
+    "Beauty": [
+        "photo-1487412912498-0447578fcca8",
+        "photo-1570172619644-dfd03ed5d881",
+        "photo-1556228720-195a672e8a03",
+        "photo-1596755389378-c31d21fd1273",
+    ],
+    "Toys": [
+        "photo-1596464716127-f2a82984de30",
+        "photo-1519331379826-f10be5486c6f",
+        "photo-1593085512500-5d55148d6f0d",
+        "photo-1587654780291-39c9404d746b",
+    ],
+    "Grocery": [
+        "photo-1488459716781-31db52582fe9",
+        "photo-1504674900247-0877df9cc836",
+        "photo-1542838132-92c53300491e",
+    ],
+}
+
 
 def random_name() -> tuple[str, str]:
     """Generate a realistic full name."""
@@ -111,11 +175,14 @@ def generate_email(first: str, last: str, idx: int) -> str:
     return f"{local}{idx}@{random.choice(domains)}"
 
 
-def get_product_image_url(product_id: str, category: str, idx: int) -> str:
-    """Generate a stable product image URL using picsum.photos with a fixed seed.
-    Using the product index as a seed ensures the same product always gets the same image."""
-    seed = f"product{idx}"
-    return f"https://picsum.photos/seed/{seed}/400/300"
+def get_product_image_url(product_id: str, category: str) -> str:
+    """Return a category-relevant image URL using a stable pool of Unsplash photos.
+    Uses a deterministic hash of the product_id so the same product always gets
+    the same image from its category's image pool."""
+    pool = CATEGORY_IMAGE_POOL.get(category, CATEGORY_IMAGE_POOL.get("Electronics", []))
+    # Stable index from product_id hash (deterministic across Python sessions)
+    idx = int(hashlib.sha256(product_id.encode()).hexdigest(), 16) % len(pool)
+    return f"https://images.unsplash.com/{pool[idx]}?w=400&h=300&fit=crop"
 
 
 def generate_product(product_id: str, category: str, subcategory: str, brand: str, idx: int) -> dict:
@@ -142,7 +209,7 @@ def generate_product(product_id: str, category: str, subcategory: str, brand: st
         "subcategory": subcategory,
         "brand": brand,
         "price": price,
-        "image_url": get_product_image_url(product_id, category, idx),
+        "image_url": get_product_image_url(product_id, category),
     }
 
 
