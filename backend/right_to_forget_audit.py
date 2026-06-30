@@ -6,7 +6,7 @@ import sys, os, sqlite3, json, urllib.request, urllib.error
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "personalisation.db")
 CUSTOMER_ID = "a5c262e4-9ed1-4689-9fd5-5bd2e8e1dcf3"  # Aaliyah Carter
-API_BASE = "http://localhost:8001/api"
+API_BASE = "http://localhost:8000/api"
 
 def query_counts(cursor, customer_id):
     """Query all relevant tables for a customer."""

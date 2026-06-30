@@ -63,8 +63,51 @@ async def get_recommendations(
 
     customer_currency = customer.currency or "USD"
 
-    # 3. Try to get recommendations from the model
-    if recommender_engine and recommender_engine._is_trained:
+    # 3. Check event count for this customer (used to decide cold-start vs model)
+    event_count_result = await db.execute(
+        select(func.count(Event.event_id))
+        .where(Event.customer_id == customer_id)
+    )
+    customer_event_count = event_count_result.scalar() or 0
+
+    # 4. Cold-start: use signup category preferences for new customers with no events
+    if customer_event_count == 0:
+        cat_pref_result = await db.execute(
+            select(CustomerCategoryPreference.category)
+            .where(CustomerCategoryPreference.customer_id == customer_id)
+        )
+        preferred_categories = cat_pref_result.scalars().all()
+        if preferred_categories:
+            cold_start_products = await db.execute(
+                select(Product)
+                .where(Product.category.in_(preferred_categories))
+                .order_by(Product.name)
+                .limit(10)
+            )
+            cold_products = cold_start_products.scalars().all()
+            if cold_products:
+                result = []
+                for idx, p in enumerate(cold_products):
+                    converted_price, cur, sym = convert_price(p.price, customer_currency)
+                    result.append(RecommendationOut(
+                        product_id=p.product_id,
+                        name=p.name,
+                        category=p.category or "",
+                        subcategory=p.subcategory,
+                        brand=p.brand,
+                        price=converted_price,
+                        currency=cur,
+                        symbol=sym,
+                        image_url=p.image_url,
+                        score=1.0 / (idx + 1),
+                        reason_code="cold_start",
+                        reason_text=f"Based on your interest in {p.category}",
+                    ))
+                if result:
+                    return result
+
+    # 5. Try model-based recommendations (only for customers with events)
+    if customer_event_count > 0 and recommender_engine and recommender_engine._is_trained:
         # Check if we have stored recommendations
         stored = await db.execute(
             select(Recommendation)
@@ -157,48 +200,7 @@ async def get_recommendations(
             import logging
             logging.getLogger(__name__).warning(f"Live recommendation failed: {e}")
 
-    # 4. Cold-start: use signup category preferences for new customers with no events
-    event_count_result = await db.execute(
-        select(func.count(Event.event_id))
-        .where(Event.customer_id == customer_id)
-    )
-    customer_event_count = event_count_result.scalar() or 0
-    if customer_event_count == 0:
-        cat_pref_result = await db.execute(
-            select(CustomerCategoryPreference.category)
-            .where(CustomerCategoryPreference.customer_id == customer_id)
-        )
-        preferred_categories = cat_pref_result.scalars().all()
-        if preferred_categories:
-            cold_start_products = await db.execute(
-                select(Product)
-                .where(Product.category.in_(preferred_categories))
-                .order_by(Product.name)
-                .limit(10)
-            )
-            cold_products = cold_start_products.scalars().all()
-            if cold_products:
-                result = []
-                for idx, p in enumerate(cold_products):
-                    converted_price, cur, sym = convert_price(p.price, customer_currency)
-                    result.append(RecommendationOut(
-                        product_id=p.product_id,
-                        name=p.name,
-                        category=p.category or "",
-                        subcategory=p.subcategory,
-                        brand=p.brand,
-                        price=converted_price,
-                        currency=cur,
-                        symbol=sym,
-                        image_url=p.image_url,
-                        score=1.0 / (idx + 1),
-                        reason_code="cold_start",
-                        reason_text=f"Based on your interest in {p.category}",
-                    ))
-                if result:
-                    return result
-
-    # 5. Fallback: trending products (by view count in last 7 days)
+    # 6. Fallback: trending products (by view count in last 7 days)
     seven_days_ago = utcnow() - timedelta(days=7)
     trending_result = await db.execute(
         select(
@@ -236,5 +238,5 @@ async def get_recommendations(
             ))
         return result
 
-    # 5. Empty fallback
+    # 7. Empty fallback
     return []
