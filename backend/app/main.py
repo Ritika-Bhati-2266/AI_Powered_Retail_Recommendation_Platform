@@ -94,6 +94,10 @@ app.include_router(offers.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(products_router.router, prefix="/api")
 
+# Customer insights
+from app.routers import insights as insights_router
+app.include_router(insights_router.router, prefix="/api")
+
 
 # ── Health Check ─────────────────────────────────────────────────────────────
 
