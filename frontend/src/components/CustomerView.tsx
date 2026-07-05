@@ -326,7 +326,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
 
       <div className="bg-black">
 
-        <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 text-center">
+        <div className="max-w-7xl mx-auto px-6 pt-16 pb-16 md:pb-24 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium mb-6">
             <Sparkles className="w-3.5 h-3.5" />
             Welcome back, {customer.name}
