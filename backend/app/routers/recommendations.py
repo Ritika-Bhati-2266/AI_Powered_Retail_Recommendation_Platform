@@ -29,6 +29,16 @@ def set_recommender_engine(engine):
     recommender_engine = engine
 
 
+def _deduplicate_recommendations(recs: list) -> list:
+    """Deduplicate by product_id, keeping the highest-scored entry."""
+    seen = {}
+    for rec in recs:
+        pid = rec.product_id
+        if pid not in seen or rec.score > seen[pid].score:
+            seen[pid] = rec
+    return sorted(seen.values(), key=lambda r: r.score, reverse=True)
+
+
 def _convert_rec_price(rec: dict, currency: str) -> dict:
     """Apply currency conversion to a recommendation dict and return it with currency+symbol."""
     converted_price, cur, sym = convert_price(rec.get("price", 0), currency)
@@ -104,7 +114,7 @@ async def get_recommendations(
                         reason_text=f"Based on your interest in {p.category}",
                     ))
                 if result:
-                    return result
+                    return _deduplicate_recommendations(result)
 
     # 5. Try model-based recommendations (only for customers with events)
     if customer_event_count > 0 and recommender_engine and recommender_engine._is_trained:
@@ -143,7 +153,7 @@ async def get_recommendations(
                         reason_text=rec.reason_text or "Recommended for you",
                     ))
             if recommendations:
-                return recommendations
+                return _deduplicate_recommendations(recommendations)
 
         # Fallback: use the in-memory model to generate live recommendations
         try:
@@ -186,7 +196,7 @@ async def get_recommendations(
             )
 
             if model_recs:
-                return [
+                live_recs = [
                     RecommendationOut(**{
                         **_convert_rec_price(r, customer_currency),
                         "subcategory": r.get("subcategory", ""),
@@ -195,6 +205,7 @@ async def get_recommendations(
                     })
                     for r in model_recs
                 ]
+                return _deduplicate_recommendations(live_recs)
         except Exception as e:
             # Log but fall through to trending
             import logging
@@ -236,7 +247,7 @@ async def get_recommendations(
                 reason_code="trending",
                 reason_text="Popular item right now",
             ))
-        return result
+        return _deduplicate_recommendations(result)
 
     # 7. Empty fallback
     return []

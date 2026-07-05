@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft } from 'lucide-react';
+import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn } from 'lucide-react';
 import { apiClient } from '../api/client';
 import type { CustomerFull } from '../types';
 
@@ -12,10 +12,10 @@ interface LoginScreenProps {
   onLogin: (customer: CustomerFull) => void;
 }
 
-type Page = 'login' | 'signup';
+type Page = 'landing' | 'login' | 'signup';
 
 export default function LoginScreen({ onLogin }: LoginScreenProps) {
-  const [page, setPage] = useState<Page>('login');
+  const [page, setPage] = useState<Page>('landing');
 
   // Login state
   const [email, setEmail] = useState('');
@@ -70,6 +70,19 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     }
   }, [signupName, signupEmail, categoryPreferences, onLogin]);
 
+  const goToLogin = useCallback(() => {
+    setPage('login');
+    setError(null);
+  }, []);
+
+  const goToSignup = useCallback(() => {
+    setPage('signup');
+    setSignupName('');
+    setSignupEmail('');
+    setSignupError(null);
+    setCategoryPreferences([]);
+  }, []);
+
   const switchToSignup = useCallback(() => {
     setSignupEmail(email);
     setPage('signup');
@@ -77,8 +90,9 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     setCategoryPreferences([]);
   }, [email]);
 
-  const switchToLogin = useCallback(() => {
-    setPage('login');
+  const goToLanding = useCallback(() => {
+    setPage('landing');
+    setError(null);
     setSignupError(null);
   }, []);
 
@@ -94,15 +108,56 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             Hyper-Personalisation Engine
           </h1>
           <p className="text-sm text-slate-400 mt-2">
-            {page === 'login'
-              ? 'Sign in to see your personalised recommendations and offers'
-              : 'Create an account to get started'}
+            {page === 'landing'
+              ? 'Sign in or create an account to get started'
+              : page === 'login'
+                ? 'Sign in to see your personalised recommendations and offers'
+                : 'Create an account to get started'}
           </p>
         </div>
 
-        {page === 'login' ? (
+        {page === 'landing' ? (
+          /* ── Landing Choice ──────────────────────────────────────── */
+          <div className="space-y-4">
+            <button
+              onClick={goToLogin}
+              className="w-full card p-6 flex items-center gap-4 hover:border-primary-500/50 transition-all group text-left"
+            >
+              <div className="w-12 h-12 rounded-xl bg-primary-500/10 flex items-center justify-center shrink-0 group-hover:bg-primary-500/20 transition-colors">
+                <LogIn className="w-6 h-6 text-primary-400" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-slate-100">Sign In</p>
+                <p className="text-sm text-slate-400">Existing user — enter your email to view your personalised experience</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-primary-400 ml-auto shrink-0 transition-colors" />
+            </button>
+
+            <button
+              onClick={goToSignup}
+              className="w-full card p-6 flex items-center gap-4 hover:border-emerald-500/50 transition-all group text-left"
+            >
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20 transition-colors">
+                <UserPlus className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-slate-100">Create Account</p>
+                <p className="text-sm text-slate-400">New here? Set up your profile and preferences</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-slate-500 group-hover:text-emerald-400 ml-auto shrink-0 transition-colors" />
+            </button>
+          </div>
+        ) : page === 'login' ? (
           /* ── Login Card ──────────────────────────────────────────── */
           <div className="card p-6">
+            <button
+              onClick={goToLanding}
+              className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 mb-4 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back
+            </button>
+
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1.5">
@@ -162,11 +217,11 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           /* ── Signup Card ─────────────────────────────────────────── */
           <div className="card p-6">
             <button
-              onClick={switchToLogin}
+              onClick={goToLanding}
               className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 mb-4 transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Back to sign in
+              Back
             </button>
 
             <form onSubmit={handleSignupSubmit} className="space-y-4">
@@ -269,9 +324,11 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         {/* Hint */}
         <div className="mt-6 card p-4 text-center">
           <p className="text-xs text-slate-400">
-            {page === 'login'
-              ? 'Enter your email to sign in, or get a "Create Account" option if you\'re new.'
-              : 'Fill in your name and email to create a new account instantly.'}
+            {page === 'landing'
+              ? 'Choose an option above to sign in or create a new account.'
+              : page === 'login'
+                ? 'Enter your email to sign in. New users can create an account from the main screen.'
+                : 'Fill in your name and email to create a new account instantly.'}
           </p>
         </div>
       </div>

@@ -98,6 +98,10 @@ app.include_router(products_router.router, prefix="/api")
 from app.routers import insights as insights_router
 app.include_router(insights_router.router, prefix="/api")
 
+# MCP OAuth
+from app.mcp import router as mcp_router
+app.include_router(mcp_router.router)
+
 
 # ── Health Check ─────────────────────────────────────────────────────────────
 

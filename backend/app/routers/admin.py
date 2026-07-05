@@ -205,10 +205,8 @@ async def _store_recommendations(db: AsyncSession) -> None:
         logger.warning("No consenting customers found for recommendations.")
         return
 
-    # Clear old recommendations
-    await db.execute(delete(Recommendation))
-
     now = utcnow()
+    stored_count = 0
 
     for customer in customers:
         try:
@@ -220,6 +218,21 @@ async def _store_recommendations(db: AsyncSession) -> None:
 
             if not recs:
                 continue
+
+            # Delete existing recommendations for this customer before inserting fresh ones
+            await db.execute(
+                delete(Recommendation).where(
+                    Recommendation.customer_id == customer.customer_id
+                )
+            )
+
+            # Deduplicate by product_id, keeping the highest-scored entry
+            seen = {}
+            for rec in recs:
+                pid = rec["product_id"]
+                if pid not in seen or rec["score"] > seen[pid]["score"]:
+                    seen[pid] = rec
+            recs = sorted(seen.values(), key=lambda r: r["score"], reverse=True)
 
             # Fetch product data for rich reason codes
             prod_result = await db.execute(select(Product))
@@ -272,12 +285,14 @@ async def _store_recommendations(db: AsyncSession) -> None:
                 )
                 db.add(recommendation)
 
+            stored_count += 1
+
         except Exception as e:
             logger.warning(f"Failed to generate recommendations for {customer.customer_id}: {e}")
             continue
 
     await db.flush()
-    logger.info(f"Stored recommendations for {len(customers)} customers.")
+    logger.info(f"Stored recommendations for {stored_count} customers.")
 
 
 @router.post("/admin/right-to-forget/{customer_id}", response_model=AdminActionOut)
