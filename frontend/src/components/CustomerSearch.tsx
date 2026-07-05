@@ -21,10 +21,8 @@ export default function CustomerSearch({ onCustomerSelect, selectedCustomerId }:
       setSearched(false);
       return;
     }
-
     setLoading(true);
     clearTimeout(debounceRef.current);
-
     debounceRef.current = setTimeout(async () => {
       try {
         const data = await apiClient.searchCustomers(query.trim());
@@ -37,45 +35,44 @@ export default function CustomerSearch({ onCustomerSelect, selectedCustomerId }:
         setLoading(false);
       }
     }, 300);
-
     return () => clearTimeout(debounceRef.current);
   }, [query]);
 
   return (
-    <div className="card p-4">
-      <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
+    <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
+      <h2 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-3">
         Customer Search
       </h2>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name or email..."
-          className="w-full bg-slate-800 text-slate-100 placeholder-slate-500 border border-slate-700 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+          className="w-full bg-zinc-900 text-zinc-100 placeholder-zinc-500 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
         />
       </div>
 
       {loading && (
         <div className="mt-3 space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="skeleton h-14 w-full" />
+            <div key={i} className="skeleton h-14 w-full rounded-xl" />
           ))}
         </div>
       )}
 
       {!loading && searched && results.length === 0 && (
         <div className="mt-4 text-center py-6">
-          <User className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-          <p className="text-sm text-slate-500">No customers found</p>
-          <p className="text-xs text-slate-600 mt-1">Try a different search term</p>
+          <User className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
+          <p className="text-sm text-zinc-500">No customers found</p>
+          <p className="text-xs text-zinc-600 mt-1">Try a different search term</p>
         </div>
       )}
 
       {!loading && results.length > 0 && (
         <>
-          <p className="text-xs text-slate-500 mt-3 mb-2">
+          <p className="text-xs text-zinc-500 mt-3 mb-2">
             {results.length} customer{results.length !== 1 ? 's' : ''} found
           </p>
           <div className="space-y-1 max-h-[calc(100vh-320px)] overflow-y-auto">
@@ -83,14 +80,14 @@ export default function CustomerSearch({ onCustomerSelect, selectedCustomerId }:
               <button
                 key={customer.customer_id}
                 onClick={() => onCustomerSelect(customer.customer_id)}
-                className={`w-full text-left p-3 rounded-lg transition-all ${
+                className={`w-full text-left p-3 rounded-xl transition-all ${
                   selectedCustomerId === customer.customer_id
-                    ? 'bg-primary-500/10 border border-primary-500/30'
-                    : 'hover:bg-slate-700/50 border border-transparent'
+                    ? 'bg-purple-500/10 border border-purple-500/30'
+                    : 'hover:bg-zinc-800/50 border border-transparent'
                 }`}
               >
-                <p className="text-sm font-medium text-slate-200">{customer.name}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{customer.email}</p>
+                <p className="text-sm font-medium text-zinc-200">{customer.name}</p>
+                <p className="text-xs text-zinc-400 mt-0.5">{customer.email}</p>
               </button>
             ))}
           </div>
@@ -99,8 +96,8 @@ export default function CustomerSearch({ onCustomerSelect, selectedCustomerId }:
 
       {!loading && !query.trim() && (
         <div className="mt-4 text-center py-6">
-          <Search className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-          <p className="text-sm text-slate-500">Type to search customers</p>
+          <Search className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
+          <p className="text-sm text-zinc-500">Type to search customers</p>
         </div>
       )}
     </div>

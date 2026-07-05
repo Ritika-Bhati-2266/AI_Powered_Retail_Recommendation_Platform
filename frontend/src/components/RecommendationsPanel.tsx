@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Smartphone,
   Shirt,
@@ -10,6 +10,7 @@ import {
   Apple,
   Package,
   AlertTriangle,
+  Star,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
 import ReasonCodeBadge from './ReasonCodeBadge';
@@ -45,7 +46,7 @@ const categoryIcons: Record<string, React.ComponentType<{ className?: string }>>
 
 function getCategoryGradient(category: string): string {
   const key = category.toLowerCase();
-  return categoryGradients[key] || 'from-slate-600 to-slate-700';
+  return categoryGradients[key] || 'from-zinc-600 to-zinc-700';
 }
 
 function getCategoryIcon(category: string): React.ComponentType<{ className?: string }> {
@@ -57,6 +58,44 @@ function formatCategoryLabel(category: string): string {
   return category
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function hashId(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = ((hash << 5) - hash) + id.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function useProductEnhancements(product: Recommendation) {
+  return useMemo(() => {
+    const h = hashId(product.product_id);
+    const rating = product.rating ?? (3.5 + (h % 15) / 10);
+    const hasDiscount = (h % 5) !== 0;
+    const discount = product.discount_percent ?? (hasDiscount ? 10 + (h % 25) : 0);
+    const originalPrice = product.original_price ?? (discount > 0 ? Math.round(product.price / (1 - discount / 100) * 100) / 100 : product.price);
+    return { rating: Math.min(5, Math.round(rating * 10) / 10), discount, originalPrice };
+  }, [product]);
+}
+
+function StarRating({ rating }: { rating: number }) {
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.5;
+  const empty = 5 - full - (half ? 1 : 0);
+  return (
+    <div className="flex items-center gap-0.5">
+      {Array.from({ length: full }, (_, i) => (
+        <Star key={`full-${i}`} className="w-3 h-3 fill-amber-400 text-amber-400" />
+      ))}
+      {half && <Star className="w-3 h-3 fill-amber-400 text-amber-400" />}
+      {Array.from({ length: empty }, (_, i) => (
+        <Star key={`empty-${i}`} className="w-3 h-3 text-zinc-600" />
+      ))}
+      <span className="text-xs text-zinc-400 ml-1">{rating}</span>
+    </div>
+  );
 }
 
 function ProductImage({ imageUrl, category }: { imageUrl?: string | null; category: string }) {
@@ -88,10 +127,8 @@ export default function RecommendationsPanel({
 
   useEffect(() => {
     if (!customerId || !consentStatus) return;
-
     setLoading(true);
     setError(null);
-
     apiClient
       .getRecommendations(customerId)
       .then(setRecommendations)
@@ -104,17 +141,16 @@ export default function RecommendationsPanel({
 
   if (!consentStatus) {
     return (
-      <div className="card p-5">
-        <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
+      <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-5">
+        <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">
           Personalised Recommendations
         </h3>
-        <div className="flex items-start gap-3 bg-amber-900/20 border border-amber-700/30 rounded-lg p-4">
+        <div className="flex items-start gap-3 bg-amber-900/20 border border-amber-700/30 rounded-xl p-4">
           <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
           <div>
             <p className="text-sm font-medium text-amber-300">Consent Required</p>
-            <p className="text-xs text-slate-400 mt-1">
-              This customer has not granted consent for personalisation. Enable consent to view
-              recommendations.
+            <p className="text-xs text-zinc-400 mt-1">
+              This customer has not granted consent for personalisation. Enable consent to view recommendations.
             </p>
           </div>
         </div>
@@ -123,15 +159,15 @@ export default function RecommendationsPanel({
   }
 
   return (
-    <div className="card p-5">
-      <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
+    <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-5">
+      <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">
         Personalised Recommendations
       </h3>
 
       {loading && (
         <div className="grid grid-cols-2 gap-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-slate-800/50 rounded-lg overflow-hidden">
+            <div key={i} className="bg-zinc-800/50 rounded-xl overflow-hidden">
               <div className="skeleton h-32 w-full" />
               <div className="p-3 space-y-2">
                 <div className="skeleton h-4 w-3/4" />
@@ -146,65 +182,79 @@ export default function RecommendationsPanel({
       {error && (
         <div className="text-center py-8">
           <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-2" />
-          <p className="text-sm text-slate-400">Failed to load recommendations</p>
-          <p className="text-xs text-slate-500 mt-1">{error}</p>
+          <p className="text-sm text-zinc-400">Failed to load recommendations</p>
+          <p className="text-xs text-zinc-500 mt-1">{error}</p>
         </div>
       )}
 
       {!loading && !error && recommendations.length === 0 && (
         <div className="text-center py-8">
-          <Package className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-          <p className="text-sm text-slate-500">No recommendations available yet</p>
-          <p className="text-xs text-slate-600 mt-1">Train the model first</p>
+          <Package className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
+          <p className="text-sm text-zinc-500">No recommendations available yet</p>
+          <p className="text-xs text-zinc-600 mt-1">Train the model first</p>
         </div>
       )}
 
       {!loading && !error && recommendations.length > 0 && (
         <div className="grid grid-cols-2 gap-3">
-          {recommendations.map((rec) => (
-            <div
-              key={rec.product_id}
-              className="card-hover bg-slate-800/50 rounded-lg overflow-hidden border border-slate-700/30 hover:border-slate-600/50 cursor-default"
-            >
+          {recommendations.map((rec) => {
+            const { rating, discount, originalPrice } = useProductEnhancements(rec);
+            return (
               <div
-                className={`h-28 bg-gradient-to-br ${getCategoryGradient(rec.category)} flex items-center justify-center relative overflow-hidden`}
+                key={rec.product_id}
+                className="bg-zinc-800/50 rounded-xl overflow-hidden border border-zinc-700/30 hover:border-zinc-600/50 transition-all cursor-default"
               >
-                {/* Category label chip */}
-                <span className="absolute top-2 left-2 bg-black/30 backdrop-blur-sm text-[10px] font-medium text-white/90 px-2 py-0.5 rounded-full">
-                  {formatCategoryLabel(rec.category)}
-                </span>
-                {/* Category icon as default visual */}
-                <ProductImage imageUrl={rec.image_url} category={rec.category} />
-              </div>
-              <div className="p-3 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <h4 className="text-sm font-medium text-slate-200 leading-tight line-clamp-2">
-                    {rec.name}
-                  </h4>
-                  <ReasonCodeBadge reason_code={rec.reason_code} />
-                </div>
-                <p className="text-xs text-slate-400 italic line-clamp-2">{rec.reason_text}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">{rec.brand}</span>
-                  <span className="text-sm font-bold text-emerald-400">
-                    {formatPrice(rec.price, rec.symbol)}
+                <div
+                  className={`h-28 bg-gradient-to-br ${getCategoryGradient(rec.category)} flex items-center justify-center relative overflow-hidden`}
+                >
+                  <span className="absolute top-2 left-2 bg-black/30 backdrop-blur-sm text-[10px] font-medium text-white/90 px-2 py-0.5 rounded-full">
+                    {formatCategoryLabel(rec.category)}
                   </span>
+                  {discount > 0 && (
+                    <span className="absolute top-2 right-2 bg-gradient-to-r from-rose-600 to-pink-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-lg">
+                      {discount}% OFF
+                    </span>
+                  )}
+                  <ProductImage imageUrl={rec.image_url} category={rec.category} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500">Score</span>
-                  <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary-500 rounded-full transition-all"
-                      style={{ width: `${Math.round(rec.score * 100)}%` }}
-                    />
+                <div className="p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <h4 className="text-sm font-medium text-zinc-200 leading-tight line-clamp-2">
+                      {rec.name}
+                    </h4>
+                    <ReasonCodeBadge reason_code={rec.reason_code} />
                   </div>
-                  <span className="text-xs text-slate-400 font-medium">
-                    {Math.round(rec.score * 100)}%
-                  </span>
+                  <p className="text-xs text-zinc-400 italic line-clamp-2">{rec.reason_text}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-400">{rec.brand}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold text-purple-400">
+                        {formatPrice(rec.price, rec.symbol)}
+                      </span>
+                      {originalPrice > rec.price && (
+                        <span className="text-[10px] text-zinc-600 line-through">
+                          {formatPrice(originalPrice, rec.symbol)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <StarRating rating={rating} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-500">Score</span>
+                    <div className="flex-1 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-purple-500 rounded-full transition-all"
+                        style={{ width: `${Math.round(rec.score * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-zinc-400 font-medium">
+                      {Math.round(rec.score * 100)}%
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

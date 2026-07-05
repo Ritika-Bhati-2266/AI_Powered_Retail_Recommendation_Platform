@@ -39,6 +39,9 @@ export interface Product {
   currency?: string;
   symbol?: string;
   image_url: string;
+  rating?: number;
+  original_price?: number;
+  discount_percent?: number;
 }
 
 export interface Recommendation extends Product {

@@ -25,7 +25,7 @@ const segmentColors: Record<string, string> = {
   'bargain_hunter': 'bg-purple-900/40 text-purple-300 border border-purple-700/40',
   'window_shopper': 'bg-cyan-900/40 text-cyan-300 border border-cyan-700/40',
   'whale': 'bg-pink-900/40 text-pink-300 border border-pink-700/40',
-  'dormant': 'bg-slate-700/40 text-slate-300 border border-slate-600/40',
+  'dormant': 'bg-zinc-700/40 text-zinc-300 border border-zinc-600/40',
 };
 
 function getSegmentColor(segment: string): string {
@@ -98,16 +98,15 @@ export default function CustomerProfile({ customer }: CustomerProfileProps) {
   ];
 
   return (
-    <div className="card p-5 space-y-4">
-      {/* Header */}
+    <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-5 space-y-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-primary-500/20 flex items-center justify-center">
-            <User className="w-6 h-6 text-primary-400" />
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
+            <User className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-slate-100">{customer.name}</h2>
-            <p className="text-sm text-slate-400">{customer.email}</p>
+            <h2 className="text-lg font-semibold text-zinc-100">{customer.name}</h2>
+            <p className="text-sm text-zinc-400">{customer.email}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -125,7 +124,6 @@ export default function CustomerProfile({ customer }: CustomerProfileProps) {
         </div>
       </div>
 
-      {/* Segments */}
       {customer.segments.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {customer.segments.map((seg, idx) => (
@@ -139,14 +137,13 @@ export default function CustomerProfile({ customer }: CustomerProfileProps) {
         </div>
       )}
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-3 gap-3 pt-2">
+      <div className="grid grid-cols-3 gap-3">
         {metrics.map((metric) => {
           const Icon = metric.icon;
           return (
             <div
               key={metric.label}
-              className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30"
+              className="bg-zinc-800/50 rounded-xl p-3 border border-zinc-800/30"
             >
               <div className="flex items-center gap-2 mb-1">
                 <Icon className={`w-3.5 h-3.5 ${metric.color}`} />

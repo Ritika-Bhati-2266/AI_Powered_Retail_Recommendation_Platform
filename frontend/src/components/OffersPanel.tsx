@@ -21,7 +21,6 @@ function formatDate(dateStr: string): string {
 }
 
 function formatDiscount(discountType: string, discountValue: number): string {
-  // "fixed" type with value 0 means free shipping
   if (discountType === 'fixed' && discountValue === 0) {
     return 'FREE SHIPPING';
   }
@@ -48,10 +47,8 @@ export default function OffersPanel({ customerId }: OffersPanelProps) {
 
   useEffect(() => {
     if (!customerId) return;
-
     setLoading(true);
     setError(null);
-
     apiClient
       .getOffers(customerId)
       .then(setOffers)
@@ -63,15 +60,15 @@ export default function OffersPanel({ customerId }: OffersPanelProps) {
   }, [customerId]);
 
   return (
-    <div className="card p-5">
-      <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
+    <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-5">
+      <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider mb-4">
         Active Offers
       </h3>
 
       {loading && (
         <div className="space-y-3">
           {[1, 2].map((i) => (
-            <div key={i} className="bg-slate-800/50 rounded-lg p-4 space-y-2">
+            <div key={i} className="bg-zinc-800/50 rounded-xl p-4 space-y-2">
               <div className="skeleton h-5 w-3/4" />
               <div className="skeleton h-3 w-full" />
               <div className="skeleton h-3 w-1/3" />
@@ -83,15 +80,15 @@ export default function OffersPanel({ customerId }: OffersPanelProps) {
       {error && (
         <div className="text-center py-8">
           <AlertTriangle className="w-8 h-8 text-red-400 mx-auto mb-2" />
-          <p className="text-sm text-slate-400">Failed to load offers</p>
-          <p className="text-xs text-slate-500 mt-1">{error}</p>
+          <p className="text-sm text-zinc-400">Failed to load offers</p>
+          <p className="text-xs text-zinc-500 mt-1">{error}</p>
         </div>
       )}
 
       {!loading && !error && offers.length === 0 && (
         <div className="text-center py-8">
-          <Gift className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-          <p className="text-sm text-slate-500">No active offers for this customer</p>
+          <Gift className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
+          <p className="text-sm text-zinc-500">No active offers for this customer</p>
         </div>
       )}
 
@@ -100,18 +97,18 @@ export default function OffersPanel({ customerId }: OffersPanelProps) {
           {offers.map((offer) => (
             <div
               key={offer.offer_id}
-              className="bg-slate-800/50 rounded-lg border border-amber-700/20 hover:border-amber-600/40 transition-all p-4"
+              className="bg-zinc-800/50 rounded-xl border border-amber-700/20 hover:border-amber-600/40 transition-all p-4"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-semibold text-slate-200">{offer.title}</h4>
-                  <p className="text-xs text-slate-400 mt-1 line-clamp-2">{offer.description}</p>
-                  <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-500">
+                  <h4 className="text-sm font-semibold text-zinc-200">{offer.title}</h4>
+                  <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{offer.description}</p>
+                  <div className="flex items-center gap-1.5 mt-2 text-xs text-zinc-500">
                     <CalendarDays className="w-3.5 h-3.5" />
                     <span>Valid until {formatDate(offer.valid_until)}</span>
                   </div>
                 </div>
-                <div className="shrink-0 bg-amber-900/30 border border-amber-700/40 rounded-lg px-3 py-2 text-center min-w-[100px]">
+                <div className="shrink-0 bg-gradient-to-r from-amber-900/30 to-amber-800/20 border border-amber-700/40 rounded-xl px-3 py-2 text-center min-w-[100px]">
                   <p className="text-sm font-bold text-amber-400">
                     {formatDiscount(offer.discount_type, offer.discount_value)}
                   </p>

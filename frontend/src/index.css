@@ -1,12 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   body {
-    @apply bg-surface text-slate-100;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    @apply bg-surface text-zinc-100;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
       'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   ::-webkit-scrollbar {
@@ -18,17 +22,21 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-700 rounded-full;
+    @apply bg-zinc-800 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-600;
+    @apply bg-zinc-700;
+  }
+
+  select option {
+    @apply bg-surface text-zinc-100;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-card border border-slate-700/50 rounded-xl shadow-lg;
+    @apply bg-card border border-zinc-800/50 rounded-xl shadow-lg;
   }
 
   .card-hover {
@@ -36,15 +44,15 @@
   }
 
   .card-hover:hover {
-    @apply -translate-y-0.5 shadow-xl border-slate-600/50;
+    @apply -translate-y-0.5 shadow-xl border-zinc-700/50;
   }
 
   .metric-value {
-    @apply text-2xl font-bold text-slate-100;
+    @apply text-2xl font-bold text-zinc-100;
   }
 
   .metric-label {
-    @apply text-xs font-medium text-slate-400 uppercase tracking-wider;
+    @apply text-xs font-medium text-zinc-500 uppercase tracking-wider;
   }
 
   .badge {
@@ -52,6 +60,22 @@
   }
 
   .skeleton {
-    @apply animate-pulse bg-slate-700/50 rounded;
+    @apply animate-pulse bg-zinc-800/50 rounded;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-purple-600/20 hover:shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 border border-zinc-700 hover:border-purple-500/50 text-zinc-300 hover:text-purple-300 text-sm font-medium rounded-xl transition-all bg-zinc-900/50 hover:bg-zinc-800/50;
+  }
+
+  .input-dark {
+    @apply w-full bg-zinc-900 text-zinc-100 placeholder-zinc-500 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all;
   }
 }

@@ -29,13 +29,13 @@ const reasonCodeMap: Record<string, { label: string; className: string }> = {
   },
   popular: {
     label: 'Popular',
-    className: 'bg-slate-700/40 text-slate-300 border border-slate-600/40',
+    className: 'bg-zinc-700/40 text-zinc-300 border border-zinc-600/40',
   },
 };
 
 const defaultMapping = {
   label: 'Recommended',
-  className: 'bg-slate-700/40 text-slate-300 border border-slate-600/40',
+  className: 'bg-zinc-700/40 text-zinc-300 border border-zinc-600/40',
 };
 
 export default function ReasonCodeBadge({ reason_code }: ReasonCodeBadgeProps) {

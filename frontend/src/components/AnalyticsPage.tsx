@@ -36,7 +36,7 @@ const SEGMENT_COLORS: Record<string, string> = {
 };
 
 function getSegmentColor(segment: string): string {
-  return SEGMENT_COLORS[segment] || '#6366f1';
+  return SEGMENT_COLORS[segment] || '#a855f7';
 }
 
 function formatSegmentLabel(segment: string): string {
@@ -49,10 +49,10 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
-      <div className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 shadow-xl">
-        <p className="text-sm font-medium text-slate-200">{formatSegmentLabel(data.segment)}</p>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 shadow-xl">
+        <p className="text-sm font-medium text-zinc-200">{formatSegmentLabel(data.segment)}</p>
         <p className="text-lg font-bold text-white">{data.count} customers</p>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-zinc-400">
           {data.percentage}% of total
         </p>
       </div>
@@ -89,7 +89,6 @@ export default function AnalyticsPage() {
     try {
       const result = await apiClient.assignOffers();
       setAssignMessage(`Assigned ${result.assignments_count} offers`);
-      // Refresh stats
       fetchStats();
     } catch {
       setAssignMessage('Failed to assign offers');
@@ -98,7 +97,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  // Prepare chart data with percentages
   const chartData = stats
     ? stats.segment_distribution.map((s) => ({
         ...s,
@@ -112,11 +110,10 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">System Analytics</h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <h2 className="text-lg font-semibold text-zinc-100">System Analytics</h2>
+          <p className="text-sm text-zinc-500 mt-1">
             Overview of customer segments, consent rates, and system health
           </p>
         </div>
@@ -124,7 +121,7 @@ export default function AnalyticsPage() {
           <button
             onClick={handleAssignOffers}
             disabled={assigning}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-amber-600/20"
           >
             {assigning ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -136,7 +133,7 @@ export default function AnalyticsPage() {
           <button
             onClick={fetchStats}
             disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-all"
+            className="btn-outline"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -145,13 +142,13 @@ export default function AnalyticsPage() {
       </div>
 
       {assignMessage && (
-        <div className="bg-amber-900/30 border border-amber-700/30 rounded-lg px-4 py-2">
+        <div className="bg-amber-900/30 border border-amber-700/30 rounded-xl px-4 py-2">
           <p className="text-xs text-amber-300">{assignMessage}</p>
         </div>
       )}
 
       {error && (
-        <div className="card p-8 text-center">
+        <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-8 text-center">
           <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
@@ -159,7 +156,7 @@ export default function AnalyticsPage() {
       {loading && !stats && (
         <div className="grid grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="card p-4 space-y-2">
+            <div key={i} className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4 space-y-2">
               <div className="skeleton h-4 w-20" />
               <div className="skeleton h-8 w-16" />
             </div>
@@ -169,9 +166,8 @@ export default function AnalyticsPage() {
 
       {stats && (
         <>
-          {/* Stat Cards */}
           <div className="grid grid-cols-4 gap-4">
-            <div className="card p-4">
+            <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="w-4 h-4 text-blue-400" />
                 <span className="metric-label">Total Customers</span>
@@ -180,20 +176,20 @@ export default function AnalyticsPage() {
                 {stats.total_customers.toLocaleString()}
               </p>
             </div>
-            <div className="card p-4">
+            <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Activity className="w-4 h-4 text-emerald-400" />
                 <span className="metric-label">Consent Rate</span>
               </div>
               <p className="metric-value text-lg">{stats.consent_rate}%</p>
-              <div className="mt-2 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+              <div className="mt-2 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-emerald-500 rounded-full transition-all"
+                  className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all"
                   style={{ width: `${stats.consent_rate}%` }}
                 />
               </div>
             </div>
-            <div className="card p-4">
+            <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <BrainCircuit className="w-4 h-4 text-purple-400" />
                 <span className="metric-label">Total Events</span>
@@ -202,7 +198,7 @@ export default function AnalyticsPage() {
                 {stats.total_events.toLocaleString()}
               </p>
             </div>
-            <div className="card p-4">
+            <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Package className="w-4 h-4 text-amber-400" />
                 <span className="metric-label">Products</span>
@@ -213,34 +209,33 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Segment Distribution Chart */}
-          <div className="card p-5">
+          <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+                <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider">
                   Segment Distribution
                 </h3>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-zinc-500 mt-1">
                   {totalSegmented} of {stats.total_customers} customers have at least one segment
                 </p>
               </div>
-              <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-0.5">
+              <div className="flex items-center gap-1 bg-zinc-800 rounded-xl p-0.5">
                 <button
                   onClick={() => setChartType('pie')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                     chartType === 'pie'
-                      ? 'bg-primary-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   Pie
                 </button>
                 <button
                   onClick={() => setChartType('bar')}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
                     chartType === 'bar'
-                      ? 'bg-primary-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-purple-600 text-white shadow-sm'
+                      : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
                   Bar
@@ -250,9 +245,9 @@ export default function AnalyticsPage() {
 
             {chartData.length === 0 ? (
               <div className="text-center py-12">
-                <Users className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-                <p className="text-sm text-slate-500">No segments assigned yet</p>
-                <p className="text-xs text-slate-600 mt-1">
+                <Users className="w-8 h-8 text-zinc-700 mx-auto mb-2" />
+                <p className="text-sm text-zinc-500">No segments assigned yet</p>
+                <p className="text-xs text-zinc-600 mt-1">
                   Run "Assign Offers" to compute segments for all customers
                 </p>
               </div>
@@ -284,7 +279,7 @@ export default function AnalyticsPage() {
                         <Tooltip content={<CustomTooltip />} />
                         <Legend
                           formatter={(value: string) => (
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-zinc-400">
                               {formatSegmentLabel(value)}
                             </span>
                           )}
@@ -294,17 +289,17 @@ export default function AnalyticsPage() {
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={chartData} layout="vertical" margin={{ left: 100 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                         <XAxis
                           type="number"
-                          tick={{ fill: '#94a3b8', fontSize: 12 }}
-                          axisLine={{ stroke: '#334155' }}
+                          tick={{ fill: '#a1a1aa', fontSize: 12 }}
+                          axisLine={{ stroke: '#27272a' }}
                         />
                         <YAxis
                           type="category"
                           dataKey="segment"
-                          tick={{ fill: '#94a3b8', fontSize: 12 }}
-                          axisLine={{ stroke: '#334155' }}
+                          tick={{ fill: '#a1a1aa', fontSize: 12 }}
+                          axisLine={{ stroke: '#27272a' }}
                           tickFormatter={(value: string) =>
                             value
                               .replace(/_/g, ' ')
@@ -326,36 +321,35 @@ export default function AnalyticsPage() {
                   )}
                 </div>
 
-                {/* Legend list (for pie, also shown in recharts legend) */}
                 {chartType === 'pie' && (
                   <div className="w-56 shrink-0 space-y-2">
                     {chartData.map((entry) => (
                       <div
                         key={entry.segment}
-                        className="flex items-center justify-between p-2 rounded-lg bg-slate-800/50"
+                        className="flex items-center justify-between p-2 rounded-xl bg-zinc-800/50"
                       >
                         <div className="flex items-center gap-2">
                           <div
                             className="w-3 h-3 rounded-full"
                             style={{ backgroundColor: getSegmentColor(entry.segment) }}
                           />
-                          <span className="text-xs text-slate-300">
+                          <span className="text-xs text-zinc-300">
                             {formatSegmentLabel(entry.segment)}
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="text-xs font-medium text-slate-200">
+                          <span className="text-xs font-medium text-zinc-200">
                             {entry.count}
                           </span>
-                          <span className="text-xs text-slate-500 ml-1">
+                          <span className="text-xs text-zinc-500 ml-1">
                             ({entry.percentage}%)
                           </span>
                         </div>
                       </div>
                     ))}
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-slate-700/30 border border-slate-700/50">
-                      <span className="text-xs font-medium text-slate-400">Total</span>
-                      <span className="text-xs font-semibold text-slate-200">
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-zinc-800/50 border border-zinc-700/50">
+                      <span className="text-xs font-medium text-zinc-400">Total</span>
+                      <span className="text-xs font-semibold text-zinc-200">
                         {totalSegmented}
                       </span>
                     </div>
@@ -365,23 +359,22 @@ export default function AnalyticsPage() {
             )}
           </div>
 
-          {/* Offer Stats */}
           <div className="grid grid-cols-3 gap-4">
-            <div className="card p-4">
+            <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Gift className="w-4 h-4 text-amber-400" />
                 <span className="metric-label">Total Offers</span>
               </div>
               <p className="metric-value text-lg">{stats.total_offers}</p>
             </div>
-            <div className="card p-4">
+            <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Gift className="w-4 h-4 text-green-400" />
                 <span className="metric-label">Active Offers</span>
               </div>
               <p className="metric-value text-lg">{stats.active_offers}</p>
             </div>
-            <div className="card p-4">
+            <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="w-4 h-4 text-indigo-400" />
                 <span className="metric-label">Offer Assignments</span>
