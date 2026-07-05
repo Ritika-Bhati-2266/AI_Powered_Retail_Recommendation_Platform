@@ -324,8 +324,8 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
         </div>
       </header>
 
-      <div className="relative bg-gradient-to-b from-purple-950/30 via-surface to-surface">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/20 via-transparent to-transparent pointer-events-none" />
+      <div className="relative bg-gradient-to-b from-black/40 via-surface to-surface">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-black/40 via-transparent to-transparent pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 text-center relative">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium mb-6">

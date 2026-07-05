@@ -284,7 +284,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   return (
     <div className="min-h-screen bg-surface flex flex-col">
       <div className="flex-1 flex flex-col items-center justify-center px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/20 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-black/40 via-transparent to-transparent pointer-events-none" />
 
         <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
           <div className="flex items-center gap-2">
