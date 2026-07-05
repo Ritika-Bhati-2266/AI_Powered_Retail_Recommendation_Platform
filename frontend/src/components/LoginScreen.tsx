@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag } from 'lucide-react';
+import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag, Search, ShoppingCart } from 'lucide-react';
 import { apiClient } from '../api/client';
 import type { CustomerFull } from '../types';
 
@@ -92,7 +92,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
   if (page !== 'landing') {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center px-4">
+      <div className="min-h-screen bg-black flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-600/25">
@@ -109,7 +109,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           </div>
 
           {page === 'login' ? (
-            <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="bg-black/60 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-sm">
               <button
                 onClick={goToLanding}
                 className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 mb-4 transition-colors"
@@ -170,7 +170,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               </p>
             </div>
           ) : (
-            <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-sm">
+            <div className="bg-black/60 border border-zinc-800/50 rounded-2xl p-6 backdrop-blur-sm">
               <button
                 onClick={goToLanding}
                 className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-200 mb-4 transition-colors"
@@ -269,7 +269,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             </div>
           )}
 
-          <div className="mt-6 bg-zinc-900/30 border border-zinc-800/30 rounded-xl p-4 text-center">
+          <div className="mt-6 bg-black/40 border border-zinc-800/30 rounded-xl p-4 text-center">
             <p className="text-xs text-zinc-500">
               {page === 'login'
                 ? 'Enter your email to sign in. New users can create an account from the main screen.'
@@ -282,83 +282,72 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-4 relative">
-
-        <nav className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
-          <div className="flex items-center gap-2">
+    <div className="min-h-screen bg-black flex flex-col">
+      <header className="bg-zinc-900/80 border-b border-zinc-800 sticky top-0 z-50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
               <ShoppingBag className="w-4 h-4 text-white" />
             </div>
             <span className="text-lg font-bold text-purple-400">PersonalShop</span>
           </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={goToLogin}
-              className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              Sign In
-            </button>
-            <button
-              onClick={goToSignup}
-              className="btn-primary text-sm px-5 py-2.5"
-            >
-              Get Started
-            </button>
-          </div>
-        </nav>
 
-        <div className="text-center max-w-3xl mx-auto px-4">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium mb-8">
+          <div className="hidden md:flex flex-1 max-w-md mx-6">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Search products..."
+                className="w-full bg-zinc-800/50 text-zinc-100 placeholder-zinc-500 border border-zinc-700/50 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button className="relative w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+              <ShoppingCart className="w-4 h-4 text-zinc-300" />
+            </button>
+
+            <div className="flex items-center gap-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-2.5 py-1.5">
+              <User className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="text-xs font-medium text-zinc-200">Welcomed Guest</span>
+            </div>
+
+            <div className="flex items-center gap-2 pl-2 border-l border-zinc-800">
+              <button
+                onClick={goToLogin}
+                className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={goToSignup}
+                className="btn-primary text-sm px-5 py-2.5"
+              >
+                Get Started
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="bg-black">
+        <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium mb-6">
             <Sparkles className="w-3.5 h-3.5" />
-            AI-Powered Personalisation
+            REAL-TIME BEHAVIOR ENGINE
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight leading-tight mb-6">
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight mb-4">
             The Store That{' '}
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-pink-300">
-              Learns
-            </span>{' '}
-            You
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-violet-500 to-pink-500">
+              Learns You
+            </span>
           </h1>
 
-          <p className="text-lg text-zinc-400 max-w-xl mx-auto mb-10 leading-relaxed">
-            Every browse, every click — your store adapts in real time. 
-            Discover products curated just for you by our AI engine.
+          <p className="text-base text-zinc-400 max-w-lg mx-auto">
+            Your store adapts to every click. Discover products curated just for you.
           </p>
-
-          <div className="flex items-center justify-center gap-4">
-            <button
-              onClick={goToSignup}
-              className="btn-primary text-base px-8 py-4"
-            >
-              <UserPlus className="w-5 h-5" />
-              Create Free Account
-            </button>
-            <button
-              onClick={goToLogin}
-              className="btn-outline text-base px-8 py-4"
-            >
-              <LogIn className="w-5 h-5" />
-              Sign In
-            </button>
-          </div>
-
-          <div className="mt-16 grid grid-cols-3 gap-8 max-w-lg mx-auto">
-            {[
-              { icon: Sparkles, label: 'Smart Picks', desc: 'AI that knows your taste' },
-              { icon: ShoppingBag, label: 'Curated Shop', desc: 'Products handpicked for you' },
-              { icon: ArrowRight, label: 'Real-Time', desc: 'Updates as you browse' },
-            ].map((item) => (
-              <div key={item.label} className="text-center">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center mx-auto mb-2">
-                  <item.icon className="w-5 h-5 text-purple-400" />
-                </div>
-                <p className="text-sm font-semibold text-zinc-200">{item.label}</p>
-                <p className="text-xs text-zinc-500 mt-0.5">{item.desc}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>

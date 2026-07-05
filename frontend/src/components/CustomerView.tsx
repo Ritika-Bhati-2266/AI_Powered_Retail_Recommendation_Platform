@@ -306,7 +306,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
             </div>
 
             <div className="flex items-center gap-2 pl-2 border-l border-zinc-800">
-              <div className="w-8 h-8 rounded-full bg-gradient-premium flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
                 <User className="w-4 h-4 text-white" />
               </div>
               <div className="hidden sm:block">
@@ -333,10 +333,9 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight mb-4">
             The Store That{' '}
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-pink-300">
-              Learns
-            </span>{' '}
-            You
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-violet-500 to-pink-500">
+              Learns You
+            </span>
           </h1>
           <p className="text-base text-zinc-400 max-w-lg mx-auto">
             Your store adapts to every click. Discover products curated just for you.
