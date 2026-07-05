@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag, Search, ShoppingCart } from 'lucide-react';
+import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag, Search, ShoppingCart, Sun } from 'lucide-react';
 import { apiClient } from '../api/client';
 import type { CustomerFull } from '../types';
 
@@ -291,42 +291,19 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             </div>
             <span className="text-lg font-bold text-purple-400">PersonalShop</span>
           </div>
-
-          <div className="hidden md:flex flex-1 max-w-md mx-6">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                className="w-full bg-zinc-800/50 text-zinc-100 placeholder-zinc-500 border border-zinc-700/50 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="relative w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
-              <ShoppingCart className="w-4 h-4 text-zinc-300" />
+          <div className="flex items-center gap-4">
+            <button
+              onClick={goToLogin}
+              className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              Sign In
             </button>
-
-            <div className="flex items-center gap-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-2.5 py-1.5">
-              <User className="w-3.5 h-3.5 text-zinc-400" />
-              <span className="text-xs font-medium text-zinc-200">Welcomed Guest</span>
-            </div>
-
-            <div className="flex items-center gap-2 pl-2 border-l border-zinc-800">
-              <button
-                onClick={goToLogin}
-                className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={goToSignup}
-                className="btn-primary text-sm px-5 py-2.5"
-              >
-                Get Started
-              </button>
-            </div>
+            <button
+              onClick={goToSignup}
+              className="btn-primary text-sm px-5 py-2.5"
+            >
+              Get Started
+            </button>
           </div>
         </div>
       </header>
