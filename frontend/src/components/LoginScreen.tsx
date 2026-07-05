@@ -291,25 +291,45 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             </div>
             <span className="text-lg font-bold text-purple-400">PersonalShop</span>
           </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={goToLogin}
-              className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              Sign In
+
+          <div className="hidden md:flex flex-1 max-w-md mx-6">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="Search products, categories..."
+                className="w-full bg-zinc-800/50 text-zinc-100 placeholder-zinc-500 border border-zinc-700/50 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button className="w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+              <Sun className="w-4 h-4 text-zinc-300" />
             </button>
-            <button
-              onClick={goToSignup}
-              className="btn-primary text-sm px-5 py-2.5"
-            >
-              Get Started
+
+            <button className="relative w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+              <ShoppingCart className="w-4 h-4 text-zinc-300" />
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-purple-600 to-pink-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center shadow-lg">0</span>
             </button>
+
+            <div className="flex items-center gap-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-2.5 py-1.5">
+              <User className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="text-xs font-medium text-zinc-200">Welcomed Guest</span>
+            </div>
+
+            <div className="flex items-center gap-2 pl-2 border-l border-zinc-800">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-xs font-medium text-zinc-200">Guest</span>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="bg-black">
-        <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 text-center">
+        <div className="max-w-7xl mx-auto px-6 py-20 md:py-28 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium mb-6">
             <Sparkles className="w-3.5 h-3.5" />
             REAL-TIME BEHAVIOR ENGINE
@@ -322,9 +342,42 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             </span>
           </h1>
 
-          <p className="text-base text-zinc-400 max-w-lg mx-auto">
-            Your store adapts to every click. Discover products curated just for you.
+          <p className="text-base text-zinc-400 max-w-xl mx-auto mb-10">
+            Watch recommendations and discount packages adapt instantly as you search, click, and browse the catalog.
           </p>
+
+          <div className="flex items-center justify-center gap-4 mb-16">
+            <button
+              onClick={goToSignup}
+              className="btn-primary text-base px-8 py-4"
+            >
+              <UserPlus className="w-5 h-5" />
+              Create Free Account
+            </button>
+            <button
+              onClick={goToLogin}
+              className="btn-outline text-base px-8 py-4"
+            >
+              <ArrowRight className="w-5 h-5" />
+              Sign In
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-12 max-w-2xl mx-auto">
+            {[
+              { icon: Sparkles, label: 'Smart Picks', desc: 'AI that knows your taste' },
+              { icon: ShoppingBag, label: 'Curated Shop', desc: 'Products handpicked for you' },
+              { icon: ArrowRight, label: 'Real-Time', desc: 'Updates as you browse' },
+            ].map((item) => (
+              <div key={item.label} className="text-center">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mx-auto mb-3">
+                  <item.icon className="w-6 h-6 text-purple-400" />
+                </div>
+                <p className="text-sm font-semibold text-zinc-200">{item.label}</p>
+                <p className="text-xs text-zinc-500 mt-1">{item.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

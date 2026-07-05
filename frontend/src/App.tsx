@@ -83,7 +83,7 @@ export default function App() {
 
   if (mode === 'login') {
     return (
-      <div className="min-h-screen bg-surface flex flex-col">
+      <div className="min-h-screen bg-black flex flex-col">
         <LoginScreen onLogin={handleLogin} />
         <div className="text-center pb-8">
           <button
@@ -103,7 +103,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-black">
       <header className="bg-zinc-900/80 border-b border-zinc-800 sticky top-0 z-50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">

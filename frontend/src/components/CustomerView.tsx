@@ -262,7 +262,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   }, [customer.customer_id]);
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-black">
       <header className="bg-zinc-900/80 border-b border-zinc-800 sticky top-0 z-50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -324,7 +324,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
         </div>
       </header>
 
-      <div className="bg-surface">
+      <div className="bg-black">
 
         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium mb-6">

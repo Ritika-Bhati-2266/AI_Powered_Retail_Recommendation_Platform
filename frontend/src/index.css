@@ -6,7 +6,7 @@
 
 @layer base {
   body {
-    @apply bg-surface text-zinc-100;
+    @apply bg-black text-zinc-100;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
       'Helvetica Neue', Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -18,7 +18,7 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-surface;
+    @apply bg-black;
   }
 
   ::-webkit-scrollbar-thumb {
@@ -30,7 +30,7 @@
   }
 
   select option {
-    @apply bg-surface text-zinc-100;
+    @apply bg-black text-zinc-100;
   }
 }
 
