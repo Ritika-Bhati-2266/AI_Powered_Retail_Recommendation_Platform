@@ -71,7 +71,7 @@ export const apiClient = {
   },
 
   searchProducts(query: string, category?: string, customerId?: string): Promise<Product[]> {
-    let path = `/products/search?q=${encodeURIComponent(query)}&limit=50`;
+    let path = `/products/search?q=${encodeURIComponent(query)}&limit=100`;
     if (category) {
       path += `&category=${encodeURIComponent(category)}`;
     }

@@ -41,7 +41,7 @@ async def get_product_categories(
 async def search_products(
     q: str = Query(default="", description="Search query for product name or brand"),
     category: str = Query(default="", description="Filter by product category"),
-    limit: int = Query(default=20, ge=1, le=100, description="Max results"),
+    limit: int = Query(default=50, ge=1, le=200, description="Max results"),
     customer_id: str = Query(default="", description="Optional customer ID for currency conversion"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -65,7 +65,11 @@ async def search_products(
     if filters:
         stmt = stmt.where(and_(*filters))
 
-    stmt = stmt.order_by(Product.name).limit(limit)
+    stmt = stmt.order_by(Product.name)
+
+    # Only apply limit when there's an actual search query or category filter
+    if q.strip() or category.strip():
+        stmt = stmt.limit(limit)
 
     result = await db.execute(stmt)
     products = result.scalars().all()
