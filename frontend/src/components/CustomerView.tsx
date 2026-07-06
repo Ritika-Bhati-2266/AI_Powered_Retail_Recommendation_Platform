@@ -207,6 +207,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
 
   const [continueShopping, setContinueShopping] = useState<Product[]>([]);
   const [loadingContinue, setLoadingContinue] = useState(true);
+  const [navbarSearch, setNavbarSearch] = useState('');
 
   useEffect(() => {
     apiClient.getCurrencies().then(setCurrencies).catch(() => {});
@@ -277,6 +278,8 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
               <input
                 type="text"
+                value={navbarSearch}
+                onChange={(e) => setNavbarSearch(e.target.value)}
                 placeholder="Search products..."
                 className="w-full bg-zinc-800/50 text-zinc-100 placeholder-zinc-500 border border-zinc-700/50 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
               />
@@ -448,7 +451,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
             </div>
             <h2 className="text-xl font-bold text-zinc-100">All Products</h2>
           </div>
-          <ProductSearch showAllOnMount customerId={customer.customer_id} />
+          <ProductSearch showAllOnMount customerId={customer.customer_id} externalQuery={navbarSearch} onExternalQueryChange={setNavbarSearch} />
         </section>
       </main>
     </div>

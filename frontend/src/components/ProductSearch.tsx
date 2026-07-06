@@ -236,8 +236,13 @@ function FilterDropdown({
   );
 }
 
-export default function ProductSearch({ showAllOnMount, customerId }: { showAllOnMount?: boolean; customerId?: string }) {
-  const [query, setQuery] = useState('');
+export default function ProductSearch({ showAllOnMount, customerId, externalQuery, onExternalQueryChange }: {
+  showAllOnMount?: boolean;
+  customerId?: string;
+  externalQuery?: string;
+  onExternalQueryChange?: (q: string) => void;
+}) {
+  const [query, setQuery] = useState(externalQuery ?? '');
   const [category, setCategory] = useState('');
   const [results, setResults] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -261,6 +266,15 @@ export default function ProductSearch({ showAllOnMount, customerId }: { showAllO
       setLoading(false);
     }
   }, [customerId]);
+
+  const prevExternalRef = useRef(externalQuery);
+
+  useEffect(() => {
+    if (externalQuery !== undefined && externalQuery !== prevExternalRef.current) {
+      prevExternalRef.current = externalQuery;
+      setQuery(externalQuery);
+    }
+  }, [externalQuery]);
 
   useEffect(() => {
     if (showAllOnMount) {
@@ -298,7 +312,11 @@ export default function ProductSearch({ showAllOnMount, customerId }: { showAllO
             <input
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setQuery(value);
+                onExternalQueryChange?.(value);
+              }}
               placeholder="Search products by name, brand, or category..."
               className="w-full bg-zinc-900 text-zinc-100 placeholder-zinc-500 border border-zinc-800 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
             />
