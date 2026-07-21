@@ -13,12 +13,17 @@ class ApiError extends Error {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`;
+  const headers = new Headers(options?.headers);
+  headers.set('Content-Type', 'application/json');
+
+  const email = localStorage.getItem('user_email');
+  if (email) {
+    headers.set('X-User-Email', email);
+  }
+
   const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
     ...options,
+    headers,
   });
 
   if (!response.ok) {
@@ -114,6 +119,18 @@ export const apiClient = {
 
   getCurrencies(): Promise<Record<string, string>> {
     return request<Record<string, string>>('/customers/currencies');
+  },
+
+  trackEvent(customerId: string, eventType: string, productId?: string, sessionId?: string): Promise<{ status: string; event_id: string }> {
+    return request<{ status: string; event_id: string }>('/events', {
+      method: 'POST',
+      body: JSON.stringify({
+        customer_id: customerId,
+        event_type: eventType,
+        product_id: productId,
+        session_id: sessionId,
+      }),
+    });
   },
 
   getRecentlyViewed(customerId: string, limit: number = 10): Promise<Product[]> {

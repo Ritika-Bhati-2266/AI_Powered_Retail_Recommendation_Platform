@@ -15,7 +15,11 @@ async def get_user_from_mcp_context(token: str, db: AsyncSession) -> User | None
         logger.warning("Invalid or expired OAuth token")
         return None
 
-    user_id = str(payload.get("user_id"))
+    user_id_raw = payload.get("user_id")
+    if user_id_raw is None:
+        logger.warning("OAuth token missing user_id")
+        return None
+    user_id = int(user_id_raw)
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 

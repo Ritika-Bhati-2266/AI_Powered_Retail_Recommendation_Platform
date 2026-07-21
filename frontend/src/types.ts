@@ -4,6 +4,7 @@ export interface Customer {
   email: string;
   consent_status: boolean;
   currency?: string;
+  role?: string;
 }
 
 export interface Segment {

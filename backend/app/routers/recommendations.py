@@ -1,6 +1,7 @@
 """Recommendations endpoint.
 GET /api/customers/{customer_id}/recommendations
 """
+import json
 import pandas as pd
 from datetime import timedelta
 
@@ -16,6 +17,7 @@ from app.config import settings
 from app.utils import utcnow
 from app.currency import convert_price
 from app.models import CustomerCategoryPreference
+from app.cache import cache_get, cache_set
 
 router = APIRouter(tags=["recommendations"])
 
@@ -54,6 +56,16 @@ async def get_recommendations(
     db: AsyncSession = Depends(get_db),
 ):
     """Get top 10 personalised recommendations for a customer."""
+    # Try cache first
+    cache_key = f"recs:{customer_id}"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        try:
+            data = json.loads(cached)
+            return [RecommendationOut(**item) for item in data]
+        except Exception:
+            pass
+
     # 1. Check consent
     consent_service = ConsentService(db)
     has_consent = await consent_service.check_consent(customer_id)
@@ -153,7 +165,12 @@ async def get_recommendations(
                         reason_text=rec.reason_text or "Recommended for you",
                     ))
             if recommendations:
-                return _deduplicate_recommendations(recommendations)
+                deduped = _deduplicate_recommendations(recommendations)
+                try:
+                    await cache_set(cache_key, json.dumps([r.model_dump() for r in deduped], default=str), ttl=300)
+                except Exception:
+                    pass
+                return deduped
 
         # Fallback: use the in-memory model to generate live recommendations
         try:

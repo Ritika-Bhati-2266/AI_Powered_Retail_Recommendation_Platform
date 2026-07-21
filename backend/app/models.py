@@ -27,6 +27,7 @@ class Customer(Base):
     consent_given = Column(Boolean, default=False, nullable=False)
     consent_timestamp = Column(DateTime, nullable=True)
     currency = Column(String(3), default="USD", nullable=False)
+    role = Column(String(50), default="customer", nullable=False)
     created_at = Column(DateTime, default=utcnow, nullable=False)
 
     events = relationship("Event", back_populates="customer", cascade="all, delete-orphan")

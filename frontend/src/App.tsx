@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Sparkles,
   BrainCircuit,
@@ -20,9 +20,10 @@ import AnalyticsPage from './components/AnalyticsPage';
 import ProductSearch from './components/ProductSearch';
 import LoginScreen from './components/LoginScreen';
 import CustomerView from './components/CustomerView';
+import DemoView from './components/DemoView';
 import type { CustomerFull } from './types';
 
-type AppMode = 'login' | 'admin' | 'customer';
+type AppMode = 'login' | 'admin' | 'customer' | 'demo';
 type AdminTab = 'dashboard' | 'analytics' | 'products';
 
 export default function App() {
@@ -37,16 +38,30 @@ export default function App() {
 
   const handleLogin = useCallback((c: CustomerFull) => {
     setLoggedInCustomer(c);
-    setMode('customer');
+    localStorage.setItem('user_email', c.email);
+    if (c.role === 'admin') {
+      setMode('admin');
+    } else {
+      setMode('customer');
+    }
   }, []);
 
   const handleLogout = useCallback(() => {
     setLoggedInCustomer(null);
+    localStorage.removeItem('user_email');
     setMode('login');
   }, []);
 
   const handleEnterAdmin = useCallback(() => {
-    setMode('admin');
+    if (loggedInCustomer?.role === 'admin') {
+      setMode('admin');
+    } else {
+      setMode('login');
+    }
+  }, [loggedInCustomer]);
+
+  const handleEnterDemo = useCallback(() => {
+    setMode('demo');
   }, []);
 
   const handleCustomerSelect = useCallback(async (customerId: string) => {
@@ -81,25 +96,49 @@ export default function App() {
     setCustomer(null);
   }, []);
 
+  // Direct URL access check: redirect to login if not admin
+  useEffect(() => {
+    const checkAuth = () => {
+      const isHashAdmin = window.location.hash === '#admin' || window.location.search.includes('mode=admin');
+      if (isHashAdmin) {
+        if (loggedInCustomer?.role !== 'admin') {
+          setMode('login');
+          window.location.hash = '';
+        } else {
+          setMode('admin');
+        }
+      }
+    };
+    checkAuth();
+    window.addEventListener('hashchange', checkAuth);
+    return () => window.removeEventListener('hashchange', checkAuth);
+  }, [loggedInCustomer]);
+
   if (mode === 'login') {
     return (
       <div className="min-h-screen bg-black flex flex-col">
-        <LoginScreen onLogin={handleLogin} />
-        <div className="text-center pb-8">
-          <button
-            onClick={handleEnterAdmin}
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
-          >
-            <User className="w-3 h-3" />
-            Admin Dashboard
-          </button>
-        </div>
+        <LoginScreen onLogin={handleLogin} onEnterDemo={handleEnterDemo} />
+        {loggedInCustomer?.role === 'admin' && (
+          <div className="text-center pb-8">
+            <button
+              onClick={handleEnterAdmin}
+              className="inline-flex items-center gap-1.5 text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
+            >
+              <User className="w-3 h-3" />
+              Admin Dashboard
+            </button>
+          </div>
+        )}
       </div>
     );
   }
 
   if (mode === 'customer' && loggedInCustomer) {
     return <CustomerView customer={loggedInCustomer} onLogout={handleLogout} />;
+  }
+
+  if (mode === 'demo') {
+    return <DemoView onBack={() => setMode('login')} />;
   }
 
   return (
@@ -166,9 +205,9 @@ export default function App() {
                 {training ? 'Training...' : 'Train Model'}
               </button>
               <button
-                onClick={() => setMode('login')}
+                onClick={handleLogout}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-800/30 hover:bg-zinc-700/30 rounded-lg transition-all"
-                title="Switch to customer portal"
+                title="Log out and switch to customer portal"
               >
                 <LogOut className="w-3 h-3" />
                 Exit

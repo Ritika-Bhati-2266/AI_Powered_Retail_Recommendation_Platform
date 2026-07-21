@@ -1477,6 +1477,19 @@ async def seed_database(db: AsyncSession) -> None:
     customers = []
     customer_count = settings.CUSTOMER_COUNT
 
+    # Seed explicit Admin User
+    admin_customer = Customer(
+        customer_id=str(uuid.uuid4()),
+        name="Admin User",
+        email="admin@personalshop.com",
+        consent_given=True,
+        consent_timestamp=now,
+        created_at=base_date,
+        role="admin",
+    )
+    db.add(admin_customer)
+    customers.append(admin_customer)
+
     for i in range(customer_count):
         customer_id = str(uuid.uuid4())
         first, last = random_name()

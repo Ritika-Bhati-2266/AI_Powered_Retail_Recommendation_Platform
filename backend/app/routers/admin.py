@@ -5,9 +5,10 @@ POST /api/admin/right-to-forget/{customer_id} --- GDPR right to forget
 """
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
+from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, Header
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 
 import pandas as pd
 
@@ -18,6 +19,7 @@ from app.schemas import TrainOut, AdminActionOut, AssignOffersOut, SystemStatsOu
 from app.privacy import ConsentService
 from app.config import settings
 from app.utils import utcnow
+from app.cache import cache_delete
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +35,34 @@ def set_recommender_engine(engine):
     recommender_engine = engine
 
 
+async def verify_admin_access(
+    x_user_email: Optional[str] = Header(None, alias="X-User-Email"),
+    db: AsyncSession = Depends(get_db),
+):
+    if not x_user_email:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required. Please log in."
+        )
+    
+    # Query database to find if this customer is an admin
+    result = await db.execute(
+        select(Customer).where(func.lower(Customer.email) == x_user_email.strip().lower())
+    )
+    customer = result.scalar_one_or_none()
+    if not customer or customer.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. Admin privileges required."
+        )
+    return customer
+
+
 @router.post("/admin/train", response_model=TrainOut)
 async def trigger_training(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    admin: Customer = Depends(verify_admin_access),
 ):
     """Trigger model training in the background."""
     if recommender_engine is None:
@@ -49,6 +75,7 @@ async def trigger_training(
 @router.post("/admin/assign-offers", response_model=AssignOffersOut)
 async def trigger_offer_assignment(
     db: AsyncSession = Depends(get_db),
+    admin: Customer = Depends(verify_admin_access),
 ):
     """Re-run offer assignment: clears old assignments and assigns
     offers to all customers based on their current segments."""
@@ -62,6 +89,7 @@ async def trigger_offer_assignment(
 @router.get("/admin/stats", response_model=SystemStatsOut)
 async def get_system_stats(
     db: AsyncSession = Depends(get_db),
+    admin: Customer = Depends(verify_admin_access),
 ):
     """Get system-wide statistics including segment distribution."""
     # Total counts
@@ -292,6 +320,11 @@ async def _store_recommendations(db: AsyncSession) -> None:
             continue
 
     await db.flush()
+    # Invalidate recommendation cache for all customers
+    try:
+        await cache_delete("recs:*")
+    except Exception:
+        pass
     logger.info(f"Stored recommendations for {stored_count} customers.")
 
 
@@ -299,6 +332,7 @@ async def _store_recommendations(db: AsyncSession) -> None:
 async def right_to_forget(
     customer_id: str,
     db: AsyncSession = Depends(get_db),
+    admin: Customer = Depends(verify_admin_access),
 ):
     """GDPR/DPDP Right to Forget — delete all customer data."""
     # Check customer exists

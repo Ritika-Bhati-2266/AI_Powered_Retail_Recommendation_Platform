@@ -101,7 +101,7 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function PremiumProductCard({ product, showAddToCart = true }: { product: Product | Recommendation; showAddToCart?: boolean }) {
+function PremiumProductCard({ product, showAddToCart = true, onAddToCart, onWishlist }: { product: Product | Recommendation; showAddToCart?: boolean; onAddToCart?: (product: Product | Recommendation) => void; onWishlist?: (product: Product | Recommendation) => void; }) {
   const Icon = getCategoryIcon(product.category);
   const colorClass = CATEGORY_COLORS[product.category] || 'from-zinc-500/20 to-zinc-600/10 border-zinc-700/30';
   const iconColor = CATEGORY_ICON_COLORS[product.category] || 'text-zinc-400';
@@ -135,13 +135,17 @@ function PremiumProductCard({ product, showAddToCart = true }: { product: Produc
           </span>
         )}
 
-        <button className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-8 h-8 rounded-full bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center hover:bg-rose-500/80" style={{ right: discount > 0 ? undefined : '12px', top: discount > 0 ? '48px' : '12px' }}>
+        <button
+          onClick={() => onWishlist?.(product)}
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-8 h-8 rounded-full bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center hover:bg-rose-500/80" style={{ right: discount > 0 ? undefined : '12px', top: discount > 0 ? '48px' : '12px' }}>
           <Heart className="w-4 h-4 text-zinc-300" />
         </button>
 
         {showAddToCart && (
           <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
-            <button className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-semibold py-2.5 rounded-xl border border-white/20 transition-all">
+            <button
+              onClick={() => onAddToCart?.(product)}
+              className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-semibold py-2.5 rounded-xl border border-white/20 transition-all">
               <Plus className="w-3.5 h-3.5" />
               Add to Cart
             </button>
@@ -162,7 +166,9 @@ function PremiumProductCard({ product, showAddToCart = true }: { product: Produc
               <span className="text-xs text-zinc-600 line-through">{formatPrice(originalPrice, product.symbol)}</span>
             )}
           </div>
-          <button className="w-9 h-9 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 flex items-center justify-center transition-all group/add">
+          <button
+            onClick={() => onAddToCart?.(product)}
+            className="w-9 h-9 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 flex items-center justify-center transition-all group/add">
             <ShoppingCart className="w-4 h-4 text-purple-400 group-hover/add:text-purple-300 transition-colors" />
           </button>
         </div>
@@ -208,6 +214,16 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   const [continueShopping, setContinueShopping] = useState<Product[]>([]);
   const [loadingContinue, setLoadingContinue] = useState(true);
   const [navbarSearch, setNavbarSearch] = useState('');
+
+  const sessionId = useMemo(() => `session_${crypto.randomUUID()}`, []);
+
+  const handleAddToCart = useCallback((product: Product | Recommendation) => {
+    apiClient.trackEvent(customer.customer_id, 'add_to_cart', product.product_id, sessionId);
+  }, [customer.customer_id, sessionId]);
+
+  const handleWishlist = useCallback((product: Product | Recommendation) => {
+    apiClient.trackEvent(customer.customer_id, 'wishlist', product.product_id, sessionId);
+  }, [customer.customer_id, sessionId]);
 
   useEffect(() => {
     apiClient.getCurrencies().then(setCurrencies).catch(() => {});
@@ -388,7 +404,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           {!loadingRecs && !recError && recommendations.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {recommendations.slice(0, 10).map((rec) => (
-                <PremiumProductCard key={rec.product_id} product={rec} showAddToCart={false} />
+                <PremiumProductCard key={rec.product_id} product={rec} showAddToCart={false} onAddToCart={handleAddToCart} onWishlist={handleWishlist} />
               ))}
             </div>
           )}
@@ -413,7 +429,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           {!loadingRecent && recentlyViewed.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {recentlyViewed.map((product) => (
-                <PremiumProductCard key={product.product_id} product={product} />
+                <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} />
               ))}
             </div>
           )}
@@ -438,7 +454,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           {!loadingContinue && continueShopping.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {continueShopping.map((product) => (
-                <PremiumProductCard key={product.product_id} product={product} />
+                <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} />
               ))}
             </div>
           )}
@@ -451,7 +467,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
             </div>
             <h2 className="text-xl font-bold text-zinc-100">All Products</h2>
           </div>
-          <ProductSearch showAllOnMount customerId={customer.customer_id} externalQuery={navbarSearch} onExternalQueryChange={setNavbarSearch} />
+          <ProductSearch showAllOnMount customerId={customer.customer_id} externalQuery={navbarSearch} onExternalQueryChange={setNavbarSearch} onAddToCart={handleAddToCart} onWishlist={handleWishlist} />
         </section>
       </main>
     </div>

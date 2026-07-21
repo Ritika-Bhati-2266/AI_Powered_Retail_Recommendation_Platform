@@ -62,6 +62,8 @@ async def lifespan(app: FastAPI):
 
     # ── Shutdown ──
     logger.info("Shutting down...")
+    from app.cache import close_redis
+    await close_redis()
     await engine.dispose()
     logger.info("Engine disposed.")
 

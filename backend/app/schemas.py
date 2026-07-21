@@ -46,6 +46,7 @@ class CustomerOut(BaseModel):
     email: str
     consent_status: bool
     currency: str = "USD"
+    role: str = "customer"
     segments: list[SegmentOut] = []
     metrics: CustomerMetrics = CustomerMetrics()
     category_preferences: list[str] = []

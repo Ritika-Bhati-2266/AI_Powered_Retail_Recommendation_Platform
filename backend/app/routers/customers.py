@@ -13,7 +13,7 @@ from app.database import get_db
 from app.models import Customer, Event, Product, CustomerSegment, CustomerOffer, Offer, CustomerCategoryPreference
 from app.offers import OfferEngine
 from app.schemas import CustomerOut, CustomerCreate, CustomerUpdate, CustomerSearchResult, CustomerMetrics, SegmentOut
-from app.utils import utcnow
+from app.utils import utcnow, get_price_tier
 from app.currency import convert_price, get_available_currencies
 
 router = APIRouter(tags=["customers"])
@@ -106,6 +106,7 @@ async def create_customer(
         email=customer.email,
         consent_status=customer.consent_given,
         currency=customer.currency or "USD",
+        role=customer.role or "customer",
         segments=[SegmentOut(segment=s.segment, assigned_at=s.assigned_at) for s in segments],
         category_preferences=cat_prefs,
         metrics=metrics,
@@ -142,6 +143,7 @@ async def get_customer_by_email(
         email=customer.email,
         consent_status=customer.consent_given,
         currency=customer.currency or "USD",
+        role=customer.role or "customer",
         segments=[SegmentOut(segment=s.segment, assigned_at=s.assigned_at) for s in segments],
         category_preferences=cat_prefs,
         metrics=metrics,
@@ -151,6 +153,8 @@ async def get_customer_by_email(
 @router.get("/customers/search", response_model=list[CustomerSearchResult])
 async def search_customers(
     q: str = Query(..., min_length=1, description="Search query for name or email"),
+    skip: int = Query(default=0, ge=0, description="Number of results to skip"),
+    limit: int = Query(default=20, ge=1, le=100, description="Max results"),
     db: AsyncSession = Depends(get_db),
 ):
     """Search customers by name or email using case-insensitive matching."""
@@ -163,7 +167,8 @@ async def search_customers(
                 func.lower(Customer.email).like(pattern),
             )
         )
-        .limit(20)
+        .offset(skip)
+        .limit(limit)
         .order_by(Customer.name)
     )
     customers = result.scalars().all()
@@ -224,6 +229,7 @@ async def update_customer_settings(
         email=customer.email,
         consent_status=customer.consent_given,
         currency=customer.currency or "USD",
+        role=customer.role or "customer",
         segments=[SegmentOut(segment=s.segment, assigned_at=s.assigned_at) for s in segments],
         category_preferences=cat_prefs,
         metrics=metrics,
@@ -262,6 +268,7 @@ async def get_customer_profile(
         email=customer.email,
         consent_status=customer.consent_given,
         currency=customer.currency or "USD",
+        role=customer.role or "customer",
         segments=[SegmentOut(segment=s.segment, assigned_at=s.assigned_at) for s in segments],
         category_preferences=cat_prefs,
         metrics=metrics,
@@ -301,9 +308,19 @@ async def _compute_customer_metrics(customer_id: str, db: AsyncSession) -> Custo
     total_cart_events = event_types.get("add_to_cart", 0) + event_types.get("remove_from_cart", 0)
     total_email_engagement = event_types.get("email_open", 0) + event_types.get("email_click", 0)
 
-    # Session duration (approximate)
-    session_count = len(set(e.session_id for e in events if e.session_id))
-    avg_session_duration = 0.0
+    # Session duration (approximate) — average minutes per session
+    session_durations = []
+    sessions: dict[str, list] = {}
+    for e in events:
+        if e.session_id:
+            sessions.setdefault(e.session_id, []).append(e.event_timestamp)
+    for s_id, timestamps in sessions.items():
+        if len(timestamps) >= 2:
+            valid_ts = [t for t in timestamps if t is not None]
+            if len(valid_ts) >= 2:
+                duration = (max(valid_ts) - min(valid_ts)).total_seconds() / 60.0
+                session_durations.append(duration)
+    avg_session_duration = round(sum(session_durations) / len(session_durations), 2) if session_durations else 0.0
 
     # Days since last activity
     sorted_events = sorted(events, key=lambda e: e.event_timestamp or now, reverse=True)
@@ -348,14 +365,7 @@ async def _compute_customer_metrics(customer_id: str, db: AsyncSession) -> Custo
         )
         products = prod_result.scalars().all()
         for p in products:
-            if p.price < 30:
-                tier = "budget"
-            elif p.price < 80:
-                tier = "mid"
-            elif p.price < 150:
-                tier = "premium"
-            else:
-                tier = "luxury"
+            tier = get_price_tier(p.price)
             price_tier_counts[tier] = price_tier_counts.get(tier, 0) + 1
 
     preferred_price_tier = ""
