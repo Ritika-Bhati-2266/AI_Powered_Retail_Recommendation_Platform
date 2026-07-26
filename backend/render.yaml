@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: retail-personalisation-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MODEL_PATH
+        value: ./data/model.pkl
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./data/personalisation.db
+      - key: PYTHON_VERSION
+        value: 3.12.0

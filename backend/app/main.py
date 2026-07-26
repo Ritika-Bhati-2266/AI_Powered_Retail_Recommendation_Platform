@@ -34,6 +34,9 @@ async def lifespan(app: FastAPI):
     # ── Startup ──
     logger.info("Starting Retail Hyper-Personalisation Engine...")
 
+    # Ensure data directory exists (for SQLite)
+    os.makedirs(os.path.join(os.path.dirname(__file__), "..", "data"), exist_ok=True)
+
     # Create tables
     await create_tables()
     logger.info("Database tables created/verified.")

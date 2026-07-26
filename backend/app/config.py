@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = ""
 
     # Model — store next to the app
-    MODEL_PATH: str = "D:/PROJECTS/Final project/retail-personalisation/backend/data/model.pkl"
+    MODEL_PATH: str = "./data/model.pkl"
 
     # Seed data configuration
     CUSTOMER_COUNT: int = 500
