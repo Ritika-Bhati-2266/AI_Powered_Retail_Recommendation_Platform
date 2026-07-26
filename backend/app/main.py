@@ -14,6 +14,7 @@ from app.config import settings
 from app.database import create_tables, engine, async_session_factory
 from app.models import Event, Customer
 from app.seed_data import seed_database
+from app.offers import OfferEngine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,6 +41,10 @@ async def lifespan(app: FastAPI):
     # Seed data if empty
     async with async_session_factory() as db:
         await seed_database(db)
+        # Always seed offers & assign them (runs even if DB already seeded)
+        offer_engine = OfferEngine(db)
+        await offer_engine.seed_offers()
+        await offer_engine.assign_offers()
         await db.commit()
 
     # Load recommender model

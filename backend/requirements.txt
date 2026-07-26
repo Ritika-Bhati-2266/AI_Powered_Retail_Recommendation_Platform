@@ -13,4 +13,4 @@ pydantic-settings
 python-dotenv
 typing_extensions
 joblib
-pyjwt
+PyJWT

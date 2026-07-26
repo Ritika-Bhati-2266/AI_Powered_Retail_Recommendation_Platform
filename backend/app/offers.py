@@ -287,13 +287,26 @@ class OfferEngine:
         }
 
     async def seed_offers(self) -> None:
-        """Create predefined offers in the database if they don't exist."""
+        """Create or refresh predefined offers with validity relative to now."""
         now = utcnow()
 
         # Check if offers already exist
         result = await self.db.execute(select(Offer).limit(1))
-        if result.scalar_one_or_none() is not None:
-            logger.info("Offers already seeded.")
+        existing = result.scalar_one_or_none()
+
+        if existing is not None:
+            # Refresh validity dates for existing offers
+            result = await self.db.execute(select(Offer))
+            all_offers = result.scalars().all()
+            for offer in all_offers:
+                for offer_data in PREDEFINED_OFFERS:
+                    if offer_data["title"] == offer.title:
+                        valid_days = offer_data["valid_days"]
+                        offer.valid_from = now
+                        offer.valid_until = now + timedelta(days=valid_days)
+                        offer.is_active = True
+                        break
+            logger.info(f"Refreshed {len(all_offers)} offers validity.")
             return
 
         for offer_data in PREDEFINED_OFFERS:
