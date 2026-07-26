@@ -78,7 +78,18 @@ function DemoProductCard({ product, index }: { product: DemoProduct; index: numb
       style={{ animationDelay: `${index * 80}ms` }}
     >
       <div className={`relative aspect-[4/3] bg-gradient-to-br ${colorClass} overflow-hidden`}>
-        <div className="flex absolute inset-0 items-center justify-center">
+        {product.image ? (
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+            }}
+          />
+        ) : null}
+        <div className={`${product.image ? 'hidden' : 'flex'} absolute inset-0 items-center justify-center`}>
           <Icon className={`w-14 h-14 ${iconColor} opacity-50`} />
         </div>
         <span className="absolute top-3 left-3 bg-zinc-900/80 backdrop-blur-sm text-[10px] font-medium text-zinc-300 px-2.5 py-1 rounded-full border border-zinc-700/50">

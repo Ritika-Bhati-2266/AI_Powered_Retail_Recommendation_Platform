@@ -8,6 +8,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app.models import Customer, Event, Product, CustomerSegment, CustomerOffer, Offer, CustomerCategoryPreference
@@ -82,7 +83,14 @@ async def create_customer(
                 created_at=now,
             ))
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email address already exists.",
+        )
 
     # Return full profile
     result = await db.execute(

@@ -59,8 +59,12 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
     try {
       const customer = await apiClient.createCustomer(name, email, categoryPreferences);
       onLogin(customer);
-    } catch {
-      setSignupError('Failed to create account. Please try again.');
+    } catch (err: any) {
+      if (err?.status === 409) {
+        setSignupError('This email is already registered. Try signing in instead.');
+      } else {
+        setSignupError(err?.message || 'Failed to create account. Please try again.');
+      }
     } finally {
       setSignupLoading(false);
     }
@@ -426,10 +430,10 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
             {[
-              { name: 'SonicWire Pro', cat: 'Electronics', price: 79.99, icon: Smartphone, col: 'from-cyan-500/20 to-cyan-600/10 border-cyan-700/30', iconCol: 'text-cyan-400' },
-              { name: 'Urban Flex Jacket', cat: 'Clothing', price: 129.99, icon: Shirt, col: 'from-pink-500/20 to-pink-600/10 border-pink-700/30', iconCol: 'text-pink-400' },
-              { name: 'Quantum Reader', cat: 'Books', price: 14.99, icon: BookOpen, col: 'from-emerald-500/20 to-emerald-600/10 border-emerald-700/30', iconCol: 'text-emerald-400' },
-              { name: 'BuildMaster 500pc', cat: 'Toys', price: 39.99, icon: Gamepad2, col: 'from-orange-500/20 to-orange-600/10 border-orange-700/30', iconCol: 'text-orange-400' },
+              { name: 'SonicWire Pro', cat: 'Electronics', price: 79.99, icon: Smartphone, col: 'from-cyan-500/20 to-cyan-600/10 border-cyan-700/30', iconCol: 'text-cyan-400', image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop' },
+              { name: 'Urban Flex Jacket', cat: 'Clothing', price: 129.99, icon: Shirt, col: 'from-pink-500/20 to-pink-600/10 border-pink-700/30', iconCol: 'text-pink-400', image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=400&h=300&fit=crop' },
+              { name: 'Quantum Reader', cat: 'Books', price: 14.99, icon: BookOpen, col: 'from-emerald-500/20 to-emerald-600/10 border-emerald-700/30', iconCol: 'text-emerald-400', image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&h=300&fit=crop' },
+              { name: 'BuildMaster 500pc', cat: 'Toys', price: 39.99, icon: Gamepad2, col: 'from-orange-500/20 to-orange-600/10 border-orange-700/30', iconCol: 'text-orange-400', image: 'https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=400&h=300&fit=crop' },
             ].map((item, i) => (
               <div
                 key={item.name}
@@ -438,7 +442,16 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                 style={{ animationDelay: `${i * 100}ms` }}
               >
                 <div className={`relative aspect-[4/3] bg-gradient-to-br ${item.col} overflow-hidden`}>
-                  <div className="flex absolute inset-0 items-center justify-center">
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                      (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                  <div className="flex absolute inset-0 items-center justify-center hidden">
                     <item.icon className={`w-14 h-14 ${item.iconCol} opacity-40 group-hover:opacity-60 transition-opacity duration-500`} />
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-900/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
