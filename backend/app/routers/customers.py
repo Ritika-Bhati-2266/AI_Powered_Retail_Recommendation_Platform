@@ -44,46 +44,47 @@ async def create_customer(
         currency=currency,
         created_at=now,
     )
-    db.add(customer)
 
-    # Assign new_user segment immediately (bypasses metrics-based evaluation)
-    db.add(CustomerSegment(
-        customer_id=customer_id,
-        segment="new_user",
-        assigned_at=now,
-    ))
+    try:
+        db.add(customer)
 
-    # Assign offers matching the new_user segment
-    result = await db.execute(
-        select(Offer).where(
-            Offer.segment == "new_user",
-            Offer.is_active == True,
-            Offer.valid_from <= now,
-            Offer.valid_until >= now,
-        )
-    )
-    welcome_offer = result.scalar_one_or_none()
-    if welcome_offer:
-        db.add(CustomerOffer(
+        # Assign new_user segment immediately (bypasses metrics-based evaluation)
+        db.add(CustomerSegment(
             customer_id=customer_id,
-            offer_id=welcome_offer.offer_id,
+            segment="new_user",
             assigned_at=now,
         ))
 
-    # Store cold-start category preferences if provided
-    valid_categories = [
-        "Electronics", "Clothing", "Home & Kitchen", "Books",
-        "Sports", "Beauty", "Toys", "Grocery",
-    ]
-    for cat in payload.category_preferences:
-        if cat in valid_categories:
-            db.add(CustomerCategoryPreference(
+        # Assign offers matching the new_user segment
+        result = await db.execute(
+            select(Offer).where(
+                Offer.segment == "new_user",
+                Offer.is_active == True,
+                Offer.valid_from <= now,
+                Offer.valid_until >= now,
+            )
+        )
+        welcome_offer = result.scalar_one_or_none()
+        if welcome_offer:
+            db.add(CustomerOffer(
                 customer_id=customer_id,
-                category=cat,
-                created_at=now,
+                offer_id=welcome_offer.offer_id,
+                assigned_at=now,
             ))
 
-    try:
+        # Store cold-start category preferences if provided
+        valid_categories = [
+            "Electronics", "Clothing", "Home & Kitchen", "Books",
+            "Sports", "Beauty", "Toys", "Grocery",
+        ]
+        for cat in payload.category_preferences:
+            if cat in valid_categories:
+                db.add(CustomerCategoryPreference(
+                    customer_id=customer_id,
+                    category=cat,
+                    created_at=now,
+                ))
+
         await db.commit()
     except IntegrityError:
         await db.rollback()

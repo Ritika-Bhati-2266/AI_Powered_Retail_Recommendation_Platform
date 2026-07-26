@@ -3,7 +3,7 @@ import {
   Sparkles, ShoppingBag, Search, ShoppingCart, User, Star,
   Package, Smartphone, Shirt, Sofa, BookOpen, Dumbbell,
   Gamepad2, Apple, Heart, Plus, ArrowLeft, RefreshCw, Clock,
-  LogOut,
+  LogOut, X, Tag,
 } from 'lucide-react';
 import { formatPrice } from '../utils/formatPrice';
 
@@ -66,7 +66,7 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function DemoProductCard({ product, index }: { product: DemoProduct; index: number }) {
+function DemoProductCard({ product, index, onClick }: { product: DemoProduct; index: number; onClick?: (product: DemoProduct) => void }) {
   const Icon = getCategoryIcon(product.category);
   const colorClass = CATEGORY_COLORS[product.category] || 'from-zinc-500/20 to-zinc-600/10 border-zinc-700/30';
   const iconColor = CATEGORY_ICON_COLORS[product.category] || 'text-zinc-400';
@@ -74,7 +74,8 @@ function DemoProductCard({ product, index }: { product: DemoProduct; index: numb
 
   return (
     <div
-      className="group bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden hover:border-zinc-700/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-600/5 hover:-translate-y-0.5"
+      onClick={() => onClick?.(product)}
+      className="group bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden hover:border-zinc-700/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-600/5 hover:-translate-y-0.5 cursor-pointer"
       style={{ animationDelay: `${index * 80}ms` }}
     >
       <div className={`relative aspect-[4/3] bg-gradient-to-br ${colorClass} overflow-hidden`}>
@@ -127,12 +128,85 @@ function DemoProductCard({ product, index }: { product: DemoProduct; index: numb
   );
 }
 
+function DemoProductDetailModal({ product, onClose }: { product: DemoProduct; onClose: () => void }) {
+  const Icon = getCategoryIcon(product.category);
+  const colorClass = CATEGORY_COLORS[product.category] || 'from-zinc-500/20 to-zinc-600/10 border-zinc-700/30';
+  const iconColor = CATEGORY_ICON_COLORS[product.category] || 'text-zinc-400';
+  const originalPrice = product.discount > 0 ? Math.round(product.price / (1 - product.discount / 100) * 100) / 100 : product.price;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl shadow-purple-600/10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative">
+          <div className={`aspect-[16/9] bg-gradient-to-br ${colorClass} relative overflow-hidden rounded-t-2xl`}>
+            {product.image ? (
+              <img
+                src={product.image}
+                alt={product.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            <div className={`${product.image ? 'hidden' : 'flex'} absolute inset-0 items-center justify-center`}>
+              <Icon className={`w-20 h-20 ${iconColor} opacity-30`} />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          </div>
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center hover:bg-zinc-700/80 transition-all"
+          >
+            <X className="w-4 h-4 text-zinc-300" />
+          </button>
+          {product.discount > 0 && (
+            <span className="absolute top-3 left-3 bg-gradient-to-r from-rose-600 to-pink-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg shadow-rose-600/30 flex items-center gap-1">
+              <Tag className="w-3 h-3" /> {product.discount}% OFF
+            </span>
+          )}
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-bold text-zinc-100">{product.name}</h2>
+              <p className="text-sm text-zinc-500">{product.brand}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-purple-400">{formatPrice(product.price)}</p>
+              {originalPrice > product.price && (
+                <p className="text-sm text-zinc-600 line-through">{formatPrice(originalPrice)}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-full border border-zinc-700/50">
+              {product.category}
+            </span>
+            <StarRating rating={product.rating} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface DemoViewProps {
   onBack: () => void;
 }
 
 export default function DemoView({ onBack }: DemoViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDemoProduct, setSelectedDemoProduct] = useState<DemoProduct | null>(null);
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return MOCK_PRODUCTS;
@@ -234,7 +308,7 @@ export default function DemoView({ onBack }: DemoViewProps) {
           {filtered.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {filtered.map((product, i) => (
-                <DemoProductCard key={product.id} product={product} index={i} />
+                <DemoProductCard key={product.id} product={product} index={i} onClick={setSelectedDemoProduct} />
               ))}
             </div>
           ) : (
@@ -244,6 +318,13 @@ export default function DemoView({ onBack }: DemoViewProps) {
           )}
         </section>
       </main>
+
+      {selectedDemoProduct && (
+        <DemoProductDetailModal
+          product={selectedDemoProduct}
+          onClose={() => setSelectedDemoProduct(null)}
+        />
+      )}
     </div>
   );
 }

@@ -577,7 +577,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
             </div>
             <h2 className="text-xl font-bold text-zinc-100">All Products</h2>
           </div>
-          <ProductSearch showAllOnMount customerId={customer.customer_id} externalQuery={navbarSearch} onExternalQueryChange={setNavbarSearch} onAddToCart={handleAddToCart} onWishlist={handleWishlist} />
+          <ProductSearch showAllOnMount customerId={customer.customer_id} externalQuery={navbarSearch} onExternalQueryChange={setNavbarSearch} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onProductClick={handleProductClick} />
         </section>
       </main>
 

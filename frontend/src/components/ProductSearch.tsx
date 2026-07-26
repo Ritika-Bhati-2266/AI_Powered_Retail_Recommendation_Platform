@@ -96,14 +96,16 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function ProductCard({ product, customerId, onAddToCart, onWishlist }: { product: Product; customerId?: string; onAddToCart?: (product: Product) => void; onWishlist?: (product: Product) => void }) {
+function ProductCard({ product, customerId, onAddToCart, onWishlist, onClick }: { product: Product; customerId?: string; onAddToCart?: (product: Product) => void; onWishlist?: (product: Product) => void; onClick?: (product: Product) => void }) {
   const Icon = getCategoryIcon(product.category);
   const colorClass = CATEGORY_COLORS[product.category] || 'from-zinc-500/20 to-zinc-600/10 border-zinc-700/30';
   const iconColor = CATEGORY_ICON_COLORS[product.category] || 'text-zinc-400';
   const { rating, discount, originalPrice } = useProductEnhancements(product);
 
   return (
-    <div className="group bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden hover:border-zinc-700/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-600/5 hover:-translate-y-0.5">
+    <div
+      onClick={() => onClick?.(product)}
+      className="group bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden hover:border-zinc-700/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-600/5 hover:-translate-y-0.5 cursor-pointer">
       <div className={`relative aspect-[4/3] bg-gradient-to-br ${colorClass} overflow-hidden`}>
         {product.image_url ? (
           <img
@@ -242,13 +244,14 @@ function FilterDropdown({
   );
 }
 
-export default function ProductSearch({ showAllOnMount, customerId, externalQuery, onExternalQueryChange, onAddToCart, onWishlist }: {
+export default function ProductSearch({ showAllOnMount, customerId, externalQuery, onExternalQueryChange, onAddToCart, onWishlist, onProductClick }: {
   showAllOnMount?: boolean;
   customerId?: string;
   externalQuery?: string;
   onExternalQueryChange?: (q: string) => void;
   onAddToCart?: (product: Product) => void;
   onWishlist?: (product: Product) => void;
+  onProductClick?: (product: Product) => void;
 }) {
   const [query, setQuery] = useState(externalQuery ?? '');
   const [category, setCategory] = useState('');
@@ -377,7 +380,7 @@ export default function ProductSearch({ showAllOnMount, customerId, externalQuer
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {results.map((product) => (
-              <ProductCard key={product.product_id} product={product} customerId={customerId} onAddToCart={onAddToCart} onWishlist={onWishlist} />
+              <ProductCard key={product.product_id} product={product} customerId={customerId} onAddToCart={onAddToCart} onWishlist={onWishlist} onClick={onProductClick} />
             ))}
           </div>
         </>
