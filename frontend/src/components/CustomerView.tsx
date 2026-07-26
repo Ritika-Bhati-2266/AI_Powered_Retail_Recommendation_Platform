@@ -20,6 +20,9 @@ import {
   RefreshCw,
   Heart,
   Plus,
+  X,
+  Tag,
+  Eye,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
 import ProductSearch from './ProductSearch';
@@ -101,14 +104,17 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function PremiumProductCard({ product, showAddToCart = true, onAddToCart, onWishlist }: { product: Product | Recommendation; showAddToCart?: boolean; onAddToCart?: (product: Product | Recommendation) => void; onWishlist?: (product: Product | Recommendation) => void; }) {
+function PremiumProductCard({ product, showAddToCart = true, onAddToCart, onWishlist, onClick }: { product: Product | Recommendation; showAddToCart?: boolean; onAddToCart?: (product: Product | Recommendation) => void; onWishlist?: (product: Product | Recommendation) => void; onClick?: (product: Product | Recommendation) => void; }) {
   const Icon = getCategoryIcon(product.category);
   const colorClass = CATEGORY_COLORS[product.category] || 'from-zinc-500/20 to-zinc-600/10 border-zinc-700/30';
   const iconColor = CATEGORY_ICON_COLORS[product.category] || 'text-zinc-400';
   const { rating, discount, originalPrice } = useProductEnhancements(product);
 
   return (
-    <div className="group bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden hover:border-zinc-700/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-600/5 hover:-translate-y-0.5">
+    <div
+      onClick={() => onClick?.(product)}
+      className="group bg-zinc-900/50 border border-zinc-800/50 rounded-2xl overflow-hidden hover:border-zinc-700/50 transition-all duration-300 hover:shadow-xl hover:shadow-purple-600/5 hover:-translate-y-0.5 cursor-pointer"
+    >
         <div className={`relative aspect-[4/3] bg-gradient-to-br ${colorClass} overflow-hidden`}>
         {product.image_url ? (
           <img
@@ -177,6 +183,100 @@ function PremiumProductCard({ product, showAddToCart = true, onAddToCart, onWish
   );
 }
 
+function ProductDetailModal({ product, onClose, onAddToCart, onWishlist }: { product: Product | Recommendation; onClose: () => void; onAddToCart?: (product: Product | Recommendation) => void; onWishlist?: (product: Product | Recommendation) => void; }) {
+  const Icon = getCategoryIcon(product.category);
+  const colorClass = CATEGORY_COLORS[product.category] || 'from-zinc-500/20 to-zinc-600/10 border-zinc-700/30';
+  const iconColor = CATEGORY_ICON_COLORS[product.category] || 'text-zinc-400';
+  const { rating, discount, originalPrice } = useProductEnhancements(product);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl shadow-purple-600/10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative">
+          <div className={`aspect-[16/9] bg-gradient-to-br ${colorClass} relative overflow-hidden rounded-t-2xl`}>
+            {product.image_url ? (
+              <img
+                src={product.image_url}
+                alt={product.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            <div className={`${product.image_url ? 'hidden' : 'flex'} absolute inset-0 items-center justify-center`}>
+              <Icon className={`w-20 h-20 ${iconColor} opacity-30`} />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          </div>
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center hover:bg-zinc-700/80 transition-all"
+          >
+            <X className="w-4 h-4 text-zinc-300" />
+          </button>
+          {discount > 0 && (
+            <span className="absolute top-3 left-3 bg-gradient-to-r from-rose-600 to-pink-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg shadow-rose-600/30 flex items-center gap-1">
+              <Tag className="w-3 h-3" /> {discount}% OFF
+            </span>
+          )}
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-bold text-zinc-100">{product.name}</h2>
+              <p className="text-sm text-zinc-500">{product.brand}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-purple-400">{formatPrice(product.price, product.symbol)}</p>
+              {originalPrice > product.price && (
+                <p className="text-sm text-zinc-600 line-through">{formatPrice(originalPrice, product.symbol)}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-zinc-800 text-zinc-300 px-2.5 py-1 rounded-full border border-zinc-700/50">
+              {product.category}
+            </span>
+            {product.subcategory && (
+              <span className="text-xs bg-zinc-800/50 text-zinc-400 px-2.5 py-1 rounded-full border border-zinc-700/50">
+                {product.subcategory}
+              </span>
+            )}
+            <StarRating rating={rating} />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => { onAddToCart?.(product); onClose(); }}
+              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white text-sm font-semibold py-3 rounded-xl transition-all"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Add to Cart
+            </button>
+            <button
+              onClick={() => { onWishlist?.(product); }}
+              className="flex items-center justify-center gap-2 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 text-sm font-semibold py-3 px-4 rounded-xl border border-zinc-700/50 transition-all"
+            >
+              <Heart className="w-4 h-4" />
+              Wishlist
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SkeletonGrid({ count = 5 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -215,6 +315,8 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   const [loadingContinue, setLoadingContinue] = useState(true);
   const [navbarSearch, setNavbarSearch] = useState('');
 
+  const [selectedProduct, setSelectedProduct] = useState<Product | Recommendation | null>(null);
+
   const sessionId = useMemo(() => `session_${crypto.randomUUID()}`, []);
 
   const handleAddToCart = useCallback((product: Product | Recommendation) => {
@@ -224,6 +326,14 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   const handleWishlist = useCallback((product: Product | Recommendation) => {
     apiClient.trackEvent(customer.customer_id, 'wishlist', product.product_id, sessionId);
   }, [customer.customer_id, sessionId]);
+
+  const handleProductClick = useCallback((product: Product | Recommendation) => {
+    setSelectedProduct(product);
+  }, []);
+
+  const closeProductDetail = useCallback(() => {
+    setSelectedProduct(null);
+  }, []);
 
   useEffect(() => {
     apiClient.getCurrencies().then(setCurrencies).catch(() => {});
@@ -404,7 +514,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           {!loadingRecs && !recError && recommendations.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {recommendations.slice(0, 10).map((rec) => (
-                <PremiumProductCard key={rec.product_id} product={rec} showAddToCart={false} onAddToCart={handleAddToCart} onWishlist={handleWishlist} />
+                <PremiumProductCard key={rec.product_id} product={rec} showAddToCart={false} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onClick={handleProductClick} />
               ))}
             </div>
           )}
@@ -429,7 +539,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           {!loadingRecent && recentlyViewed.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {recentlyViewed.map((product) => (
-                <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} />
+                <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onClick={handleProductClick} />
               ))}
             </div>
           )}
@@ -454,7 +564,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           {!loadingContinue && continueShopping.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {continueShopping.map((product) => (
-                <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} />
+                <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onClick={handleProductClick} />
               ))}
             </div>
           )}
@@ -470,6 +580,15 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           <ProductSearch showAllOnMount customerId={customer.customer_id} externalQuery={navbarSearch} onExternalQueryChange={setNavbarSearch} onAddToCart={handleAddToCart} onWishlist={handleWishlist} />
         </section>
       </main>
+
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={closeProductDetail}
+          onAddToCart={handleAddToCart}
+          onWishlist={handleWishlist}
+        />
+      )}
     </div>
   );
 }
