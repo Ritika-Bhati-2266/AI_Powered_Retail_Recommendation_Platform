@@ -36,16 +36,16 @@ interface DemoProduct {
 }
 
 const MOCK_PRODUCTS: DemoProduct[] = [
-  { id: 'd1', name: 'SonicWire Pro Headphones', category: 'Electronics', brand: 'SoundPro', price: 79.99, image: '', rating: 4.5, discount: 20 },
-  { id: 'd2', name: 'Urban Flex Jacket', category: 'Clothing', brand: 'UrbanWear', price: 129.99, image: '', rating: 4.2, discount: 15 },
-  { id: 'd3', name: 'Smart Home Hub', category: 'Home & Kitchen', brand: 'HomeAI', price: 149.99, image: '', rating: 4.7, discount: 10 },
-  { id: 'd4', name: 'Quantum Reader E-Book', category: 'Books', brand: 'VersePress', price: 14.99, image: '', rating: 4.0, discount: 0 },
-  { id: 'd5', name: 'AeroStride Running Shoes', category: 'Sports', brand: 'AeroFit', price: 89.99, image: '', rating: 4.3, discount: 25 },
-  { id: 'd6', name: 'GlowSkin Serum', category: 'Beauty', brand: 'GlowLab', price: 34.99, image: '', rating: 4.6, discount: 0 },
-  { id: 'd7', name: 'BuildMaster Blocks 500pc', category: 'Toys', brand: 'BuildMaster', price: 39.99, image: '', rating: 4.8, discount: 5 },
-  { id: 'd8', name: 'FreshHarvest Organic Snacks', category: 'Grocery', brand: 'FreshHarvest', price: 24.99, image: '', rating: 4.1, discount: 0 },
-  { id: 'd9', name: 'PixelView 4K Monitor', category: 'Electronics', brand: 'PixelView', price: 349.99, image: '', rating: 4.4, discount: 12 },
-  { id: 'd10', name: 'Cashmere Blend Scarf', category: 'Clothing', brand: 'LuxeWear', price: 59.99, image: '', rating: 4.0, discount: 0 },
+  { id: 'd1', name: 'SonicWire Pro Headphones', category: 'Electronics', brand: 'SoundPro', price: 79.99, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop', rating: 4.5, discount: 20 },
+  { id: 'd2', name: 'Urban Flex Jacket', category: 'Clothing', brand: 'UrbanWear', price: 129.99, image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=400&h=300&fit=crop', rating: 4.2, discount: 15 },
+  { id: 'd3', name: 'Smart Home Hub', category: 'Home & Kitchen', brand: 'HomeAI', price: 149.99, image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop', rating: 4.7, discount: 10 },
+  { id: 'd4', name: 'Quantum Reader E-Book', category: 'Books', brand: 'VersePress', price: 14.99, image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&h=300&fit=crop', rating: 4.0, discount: 0 },
+  { id: 'd5', name: 'AeroStride Running Shoes', category: 'Sports', brand: 'AeroFit', price: 89.99, image: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=400&h=300&fit=crop', rating: 4.3, discount: 25 },
+  { id: 'd6', name: 'GlowSkin Serum', category: 'Beauty', brand: 'GlowLab', price: 34.99, image: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=400&h=300&fit=crop', rating: 4.6, discount: 0 },
+  { id: 'd7', name: 'BuildMaster Blocks 500pc', category: 'Toys', brand: 'BuildMaster', price: 39.99, image: 'https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=400&h=300&fit=crop', rating: 4.8, discount: 5 },
+  { id: 'd8', name: 'FreshHarvest Organic Snacks', category: 'Grocery', brand: 'FreshHarvest', price: 24.99, image: 'https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=400&h=300&fit=crop', rating: 4.1, discount: 0 },
+  { id: 'd9', name: 'PixelView 4K Monitor', category: 'Electronics', brand: 'PixelView', price: 349.99, image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=300&fit=crop', rating: 4.4, discount: 12 },
+  { id: 'd10', name: 'Cashmere Blend Scarf', category: 'Clothing', brand: 'LuxeWear', price: 59.99, image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400&h=300&fit=crop', rating: 4.0, discount: 0 },
 ];
 
 function getCategoryIcon(category: string) {
