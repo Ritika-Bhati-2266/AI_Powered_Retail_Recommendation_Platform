@@ -1448,7 +1448,7 @@ async def seed_database(db: AsyncSession) -> None:
 
     # Assign activity levels (pareto-style: 20% of customers generate 80% of events)
     activity_weights = []
-    for i in range(customer_count):
+    for _ in range(len(customers)):
         # Some customers are power users, most are casual
         base_weight = random.expovariate(0.5) + 0.1
         activity_weights.append(base_weight)
@@ -1458,8 +1458,9 @@ async def seed_database(db: AsyncSession) -> None:
 
     # Adjust to exactly match event_count
     diff = event_count - sum(event_assignments)
+    assign_len = len(event_assignments)
     for i in range(abs(diff)):
-        event_assignments[i % customer_count] += 1 if diff > 0 else -1
+        event_assignments[i % assign_len] += 1 if diff > 0 else -1
 
     customer_product_affinities = {}  # customer_id -> list of product_id (preferred products)
     customer_purchase_history = {}  # customer_id -> list of product_id (purchased products)
