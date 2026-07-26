@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag, Search, ShoppingCart, Sun, BrainCircuit, Star, Smartphone, Shirt, BookOpen, Gamepad2, X } from 'lucide-react';
 import { apiClient } from '../api/client';
 import type { CustomerFull } from '../types';
@@ -28,6 +29,30 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupError, setSignupError] = useState<string | null>(null);
   const [categoryPreferences, setCategoryPreferences] = useState<string[]>([]);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties | null>(null);
+
+  useEffect(() => {
+    const updatePosition = () => {
+      if (searchContainerRef.current) {
+        const rect = searchContainerRef.current.getBoundingClientRect();
+        setDropdownStyle({
+          position: 'fixed',
+          top: rect.bottom + 8,
+          left: rect.left,
+          width: rect.width,
+          zIndex: 100,
+        });
+      }
+    };
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, { passive: true });
+    window.addEventListener('resize', updatePosition, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', updatePosition);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, []);
 
   const handleLoginSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,7 +323,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
             <span className="text-lg font-bold text-purple-400">PersonalShop</span>
           </div>
 
-          <div className="hidden md:flex flex-1 max-w-md mx-6 relative">
+          <div ref={searchContainerRef} className="hidden md:flex flex-1 max-w-md mx-6 relative">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
               <input
@@ -309,7 +334,9 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                 readOnly
               />
             </div>
-            <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-800/50 rounded-xl p-3 shadow-xl shadow-black/40 z-50">
+          </div>
+          {dropdownStyle && createPortal(
+            <div style={dropdownStyle} className="bg-zinc-900 border border-zinc-800/50 rounded-xl p-3 shadow-xl shadow-black/40">
               <p className="text-[10px] font-medium text-zinc-600 uppercase tracking-wider mb-2">Trending Searches</p>
               <div className="flex flex-wrap gap-1.5">
                 {['Wireless Headphones', 'Sports Shoes', 'Smart Home', 'Skincare', 'Gaming'].map((term) => (
@@ -322,8 +349,9 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                   </button>
                 ))}
               </div>
-            </div>
-          </div>
+            </div>,
+            document.body
+          )}
 
           <div className="flex items-center gap-3">
             <button className="w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
