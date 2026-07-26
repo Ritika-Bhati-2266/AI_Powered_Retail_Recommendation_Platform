@@ -137,12 +137,14 @@ if FRONTEND_DIST.is_dir():
     @app.exception_handler(404)
     async def spa_fallback(request, exc):
         if request.url.path.startswith("/api"):
-            raise exc
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
         index_path = FRONTEND_DIST / "index.html"
         if index_path.is_file():
             from fastapi.responses import HTMLResponse
             return HTMLResponse(content=index_path.read_text(), status_code=200)
-        raise exc
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
 
     logger.info("Serving frontend from %s", FRONTEND_DIST)
 else:
