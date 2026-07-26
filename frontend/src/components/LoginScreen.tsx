@@ -309,7 +309,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                 readOnly
               />
             </div>
-            <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900/95 border border-zinc-800/50 rounded-xl p-3 backdrop-blur-sm z-50">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 border border-zinc-800/50 rounded-xl p-3 shadow-xl shadow-black/40 z-50">
               <p className="text-[10px] font-medium text-zinc-600 uppercase tracking-wider mb-2">Trending Searches</p>
               <div className="flex flex-wrap gap-1.5">
                 {['Wireless Headphones', 'Sports Shoes', 'Smart Home', 'Skincare', 'Gaming'].map((term) => (
