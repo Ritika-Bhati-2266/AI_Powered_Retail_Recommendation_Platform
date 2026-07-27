@@ -30,7 +30,9 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
   const [signupError, setSignupError] = useState<string | null>(null);
   const [categoryPreferences, setCategoryPreferences] = useState<string[]>([]);
   const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties | null>(null);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   useEffect(() => {
     const updatePosition = () => {
@@ -53,6 +55,22 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
       window.removeEventListener('resize', updatePosition);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isSearchFocused) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node) &&
+        searchDropdownRef.current &&
+        !searchDropdownRef.current.contains(e.target as Node)
+      ) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSearchFocused]);
 
   const handleLoginSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -329,14 +347,14 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
               <input
                 type="text"
                 placeholder="Search products, categories..."
-                onFocus={goToSignup}
+                onFocus={() => setIsSearchFocused(true)}
                 className="w-full bg-zinc-800/50 text-zinc-100 placeholder-zinc-500 border border-zinc-700/50 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all cursor-pointer"
                 readOnly
               />
             </div>
           </div>
-          {dropdownStyle && createPortal(
-            <div style={dropdownStyle} className="bg-zinc-900 border border-zinc-800/50 rounded-xl p-3 shadow-xl shadow-black/40">
+          {dropdownStyle && isSearchFocused && createPortal(
+            <div ref={searchDropdownRef} style={dropdownStyle} className="bg-zinc-900 border border-zinc-800/50 rounded-xl p-3 shadow-xl shadow-black/40">
               <p className="text-[10px] font-medium text-zinc-600 uppercase tracking-wider mb-2">Trending Searches</p>
               <div className="flex flex-wrap gap-1.5">
                 {['Wireless Headphones', 'Sports Shoes', 'Smart Home', 'Skincare', 'Gaming'].map((term) => (
