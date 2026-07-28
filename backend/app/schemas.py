@@ -87,6 +87,9 @@ class RecommendationOut(BaseModel):
     currency: str = "USD"
     symbol: str = "$"
     image_url: Optional[str] = None
+    rating: Optional[float] = None
+    discount_percent: Optional[float] = None
+    original_price: Optional[float] = None
     score: float
     reason_code: str
     reason_text: str
@@ -120,6 +123,9 @@ class ProductSearchResult(BaseModel):
     currency: str = "USD"
     symbol: str = "$"
     image_url: str = ""
+    rating: Optional[float] = None
+    discount_percent: Optional[float] = None
+    original_price: Optional[float] = None
 
 
 class ProductOut(BaseModel):
@@ -132,6 +138,9 @@ class ProductOut(BaseModel):
     currency: str = "USD"
     symbol: str = "$"
     image_url: str = ""
+    rating: Optional[float] = None
+    discount_percent: Optional[float] = None
+    original_price: Optional[float] = None
     class Config:
         from_attributes = True
 

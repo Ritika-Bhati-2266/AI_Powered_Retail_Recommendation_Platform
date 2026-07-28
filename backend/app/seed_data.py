@@ -1296,6 +1296,17 @@ def get_product_image_url(product_id: str, category: str) -> str:
 def generate_product(product_id: str, category: str, subcategory: str, brand: str, name_suffix: str, price: float) -> dict:
     """Generate a product dict from explicit definition."""
     product_name = f"{brand} {name_suffix}"
+    # Generate a deterministic-but-realistic rating (3.5–5.0)
+    hash_val = int(hashlib.sha256(product_id.encode()).hexdigest(), 16)
+    rating = 3.5 + (hash_val % 15) / 10
+    rating = min(5.0, round(rating, 1))
+    # ~40% of products have a discount
+    has_discount = (hash_val % 5) != 0 and (hash_val % 3) != 0
+    discount_percent = None
+    original_price = None
+    if has_discount:
+        discount_percent = 5 + (hash_val % 26)
+        original_price = round(price / (1 - discount_percent / 100), 2)
     return {
         "product_id": product_id,
         "name": product_name,
@@ -1303,6 +1314,9 @@ def generate_product(product_id: str, category: str, subcategory: str, brand: st
         "subcategory": subcategory,
         "brand": brand,
         "price": price,
+        "rating": rating,
+        "discount_percent": discount_percent,
+        "original_price": original_price,
         "image_url": get_product_image_url(product_id, category),
     }
 

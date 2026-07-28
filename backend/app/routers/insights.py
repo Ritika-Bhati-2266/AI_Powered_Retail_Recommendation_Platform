@@ -73,6 +73,9 @@ async def get_recently_viewed(
             currency=cur,
             symbol=sym,
             image_url=p.image_url or "",
+            rating=p.rating,
+            discount_percent=p.discount_percent,
+            original_price=p.original_price,
         ))
     return out
 
@@ -148,5 +151,8 @@ async def get_continue_shopping(
             currency=cur,
             symbol=sym,
             image_url=p.image_url or "",
+            rating=p.rating,
+            discount_percent=p.discount_percent,
+            original_price=p.original_price,
         ))
     return out

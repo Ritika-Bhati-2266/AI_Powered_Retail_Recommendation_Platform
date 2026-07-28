@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Search,
   Package,
@@ -76,25 +76,7 @@ function getCategoryIcon(category: string) {
   return CATEGORY_ICONS[category] || Package;
 }
 
-function hashId(id: string): number {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = ((hash << 5) - hash) + id.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
 
-function useProductEnhancements(product: Product) {
-  return useMemo(() => {
-    const h = hashId(product.product_id);
-    const rating = product.rating ?? (3.5 + (h % 15) / 10);
-    const hasDiscount = (h % 5) !== 0;
-    const discount = product.discount_percent ?? (hasDiscount ? 10 + (h % 25) : 0);
-    const originalPrice = product.original_price ?? (discount > 0 ? Math.round(product.price / (1 - discount / 100) * 100) / 100 : product.price);
-    return { rating: Math.min(5, Math.round(rating * 10) / 10), discount, originalPrice };
-  }, [product]);
-}
 
 function StarRating({ rating }: { rating: number }) {
   const full = Math.floor(rating);
@@ -118,7 +100,9 @@ function ProductCard({ product, customerId, onAddToCart, onWishlist, onClick }: 
   const Icon = getCategoryIcon(product.category);
   const colorClass = CATEGORY_COLORS[product.category] || 'from-zinc-500/20 to-zinc-600/10 border-zinc-700/30';
   const iconColor = CATEGORY_ICON_COLORS[product.category] || 'text-zinc-400';
-  const { rating, discount, originalPrice } = useProductEnhancements(product);
+  const rating = product.rating ?? 0;
+  const discount = product.discount_percent ?? 0;
+  const originalPrice = product.original_price ?? product.price;
 
   return (
     <div

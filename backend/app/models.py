@@ -47,6 +47,9 @@ class Product(Base):
     subcategory = Column(String(100), nullable=True)
     brand = Column(String(100), nullable=True)
     price = Column(Float, nullable=False, default=0.0)
+    rating = Column(Float, nullable=True)
+    discount_percent = Column(Float, nullable=True)
+    original_price = Column(Float, nullable=True)
     image_url = Column(Text, nullable=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)
 

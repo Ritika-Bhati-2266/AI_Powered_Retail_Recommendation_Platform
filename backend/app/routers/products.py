@@ -140,6 +140,9 @@ async def search_products(
             currency=cur,
             symbol=sym,
             image_url=p.image_url or "",
+            rating=p.rating,
+            discount_percent=p.discount_percent,
+            original_price=p.original_price,
         ))
     return out
 
@@ -180,4 +183,7 @@ async def get_product(
         currency=cur,
         symbol=sym,
         image_url=product.image_url or "",
+        rating=product.rating,
+        discount_percent=product.discount_percent,
+        original_price=product.original_price,
     )
