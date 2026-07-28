@@ -1,0 +1,9 @@
+2026-07-28 11:25:21,899 [INFO] app.main: Serving frontend from D:\PROJECTS\Final project\retail-personalisation\frontend\dist
+2026-07-28 11:25:21,930 [INFO] app.main: Starting Retail Hyper-Personalisation Engine...
+2026-07-28 11:25:21,938 [INFO] app.main: Database tables created/verified.
+2026-07-28 11:25:21,954 [INFO] app.seed_data: Database already has 10004 events. Skipping seed.
+2026-07-28 11:25:21,954 [INFO] app.offers: Refreshed 8 offers validity.
+2026-07-28 11:25:21,972 [INFO] app.offers: Assigned 233 offers to customers.
+2026-07-28 11:25:22,950 [INFO] app.recommender: Model loaded from ./data/model.pkl
+2026-07-28 11:25:22,950 [INFO] app.main: Recommender model loaded from disk.
+2026-07-28 11:25:22,950 [INFO] app.main: Application startup complete.

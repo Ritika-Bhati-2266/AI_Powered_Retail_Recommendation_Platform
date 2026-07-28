@@ -79,9 +79,9 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 
 ## Quick Start
 
-### Option A: No Docker (local dev)
-
 **Prerequisites:** Python 3.12+, Node.js 18+
+
+### Local Development
 
 ```bash
 # Backend
@@ -99,19 +99,11 @@ npm run dev
 ```
 
 On first startup, the backend automatically:
-1. Creates database tables (SQLite by default — zero-config)
+1. Creates database tables (SQLite by default — zero-config, no external services needed)
 2. Seeds 500 customers, 760 products, and ~10,000 behavioural events
 3. Loads a pre-trained ML model if available
 
-### Option B: Docker Compose
-
-```bash
-docker compose up --build
-```
-
-This starts PostgreSQL, Redis, the backend API on `http://localhost:8000`, and the frontend on `http://localhost:5173`.
-
-### Option C: Deploy on Render
+### Deploy on Render
 
 The project includes a `render.yaml` for one-click deployment on Render. Set the following environment variables:
 
@@ -220,8 +212,7 @@ retail-personalisation/
 │   ├── data/                     # Model checkpoints + SQLite DB
 │   ├── requirements.txt
 │   ├── pytest.ini
-│   ├── render.yaml
-│   └── Dockerfile
+│   └── render.yaml
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx               # Main dashboard + routing
@@ -241,10 +232,7 @@ retail-personalisation/
 │   │       └── ReasonCodeBadge.tsx# Color-coded reason tags
 │   ├── package.json
 │   ├── tailwind.config.js
-│   ├── vite.config.ts
-│   └── Dockerfile
-├── docker-compose.yml
-├── render.yaml
+│   └── vite.config.ts
 └── README.md
 ```
 
