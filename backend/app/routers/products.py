@@ -3,6 +3,7 @@ Product endpoints.
 GET /api/products/search?q=...&category=...&customer_id=...
 GET /api/products/{id}?customer_id=...
 """
+import re
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, or_, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,16 +16,43 @@ from app.currency import convert_price
 router = APIRouter(tags=["products"])
 
 
-def _apply_currency(products_data: list[dict], customer_currency: str) -> list[dict]:
-    """Apply currency conversion to a list of product dicts."""
-    result = []
-    for p in products_data:
-        converted_price, cur, sym = convert_price(p["price"], customer_currency)
-        p["price"] = converted_price
-        p["currency"] = cur
-        p["symbol"] = sym
-        result.append(p)
-    return result
+
+# Characters treated as separators — replaced with space for normalized matching
+_SEPARATORS = '-_/\\.,:!@#$%^&*()+=[\\]{}|`~\'"'
+
+# ── Synonym Map ──────────────────────────────────────────────────────────────
+_SYNONYM_MAP: dict[str, list[str]] = {
+    "mobile":           ["phone", "smartphone", "cellphone"],
+    "smartphone":       ["mobile", "phone", "cellphone"],
+    "phone":            ["mobile", "smartphone", "cellphone"],
+    "cellphone":        ["mobile", "phone", "smartphone"],
+    "laptop":           ["notebook", "notebook computer"],
+    "notebook":         ["laptop"],
+    "tv":               ["television"],
+    "television":       ["tv"],
+    "earphones":        ["earbuds", "headphones"],
+    "earbuds":          ["earphones", "headphones"],
+    "headphones":       ["earphones", "earbuds"],
+    "tshirt":           ["t-shirt", "tee"],
+    "t-shirt":          ["tshirt", "tee"],
+    "tee":              ["tshirt", "t-shirt"],
+    "sneakers":         ["shoes", "trainers"],
+    "shoes":            ["sneakers", "trainers"],
+    "trainers":         ["sneakers", "shoes"],
+    "perfume":          ["fragrance", "scent"],
+    "fragrance":        ["perfume", "scent"],
+    "scent":            ["perfume", "fragrance"],
+    "watch":            ["smartwatch"],
+    "smartwatch":       ["watch"],
+}
+
+
+def _normalize_query(query: str) -> tuple[str, str]:
+    lowered = query.lower().strip()
+    spaced = re.sub(r'[' + re.escape(_SEPARATORS) + r']', ' ', lowered)
+    spaced = re.sub(r'\s+', ' ', spaced).strip()
+    compact = re.sub(r'[\s' + re.escape(_SEPARATORS) + r']', '', lowered)
+    return spaced, compact
 
 
 @router.get("/products/categories", response_model=list[str])
@@ -50,14 +78,29 @@ async def search_products(
 
     filters = []
     if q.strip():
-        pattern = f"%{q.lower()}%"
-        filters.append(
-            or_(
-                func.lower(Product.name).like(pattern),
-                func.lower(Product.brand).like(pattern),
-                func.lower(Product.category).like(pattern),
+        q_spaced, q_compact = _normalize_query(q)
+
+        # Collect all search terms: the original query plus any synonym expansions
+        search_terms = {q_spaced, q_compact}
+        for word in q.lower().strip().split():
+            for synonym in _SYNONYM_MAP.get(word, []):
+                syn_spaced, syn_compact = _normalize_query(synonym)
+                search_terms.add(syn_spaced)
+                search_terms.add(syn_compact)
+
+        # Build a LIKE condition for each search term against name, brand, category
+        term_conditions = []
+        for term in search_terms:
+            like_pattern = f"%{term}%"
+            term_conditions.append(
+                or_(
+                    func.lower(Product.name).like(like_pattern),
+                    func.lower(Product.brand).like(like_pattern),
+                    func.lower(Product.category).like(like_pattern),
+                )
             )
-        )
+
+        filters.append(or_(*term_conditions))
 
     if category.strip():
         filters.append(func.lower(Product.category) == category.strip().lower())

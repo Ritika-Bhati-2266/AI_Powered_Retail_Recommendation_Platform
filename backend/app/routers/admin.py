@@ -3,16 +3,16 @@
 POST /api/admin/train --- trigger model training
 POST /api/admin/right-to-forget/{customer_id} --- GDPR right to forget
 """
+import asyncio
 import logging
-from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
 import pandas as pd
 
-from app.database import get_db
+from app.database import get_db, async_session_factory
 from app.models import Customer, Event, Product, Recommendation
 from app.offers import OfferEngine
 from app.schemas import TrainOut, AdminActionOut, AssignOffersOut, SystemStatsOut, SegmentCountOut
@@ -60,7 +60,6 @@ async def verify_admin_access(
 
 @router.post("/admin/train", response_model=TrainOut)
 async def trigger_training(
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     admin: Customer = Depends(verify_admin_access),
 ):
@@ -68,7 +67,7 @@ async def trigger_training(
     if recommender_engine is None:
         raise HTTPException(status_code=503, detail="Recommender engine not available")
 
-    background_tasks.add_task(run_training, db)
+    asyncio.create_task(run_training())
     return TrainOut()
 
 
@@ -155,68 +154,70 @@ async def get_system_stats(
     )
 
 
-async def run_training(db: AsyncSession) -> None:
+async def run_training() -> None:
     """Background task: fetch data and train the model."""
-    try:
-        logger.info("Starting model training...")
+    async with async_session_factory() as db:
+        try:
+            logger.info("Starting model training...")
 
-        # Fetch all events
-        result = await db.execute(select(Event))
-        events = result.scalars().all()
+            # Fetch all events
+            result = await db.execute(select(Event))
+            events = result.scalars().all()
 
-        if not events:
-            logger.warning("No events found for training.")
-            return
+            if not events:
+                logger.warning("No events found for training.")
+                return
 
-        # Convert to pandas
-        import pandas as pd
-        events_data = [
-            {
-                "event_id": e.event_id,
-                "customer_id": e.customer_id,
-                "product_id": e.product_id,
-                "event_type": e.event_type,
-                "event_timestamp": e.event_timestamp,
-            }
-            for e in events
-        ]
-        events_df = pd.DataFrame(events_data)
+            # Convert to pandas
+            events_data = [
+                {
+                    "event_id": e.event_id,
+                    "customer_id": e.customer_id,
+                    "product_id": e.product_id,
+                    "event_type": e.event_type,
+                    "event_timestamp": e.event_timestamp,
+                }
+                for e in events
+            ]
+            events_df = pd.DataFrame(events_data)
 
-        # Fetch all products
-        result = await db.execute(select(Product))
-        products = result.scalars().all()
-        products_data = [
-            {
-                "product_id": p.product_id,
-                "name": p.name,
-                "category": p.category,
-                "subcategory": p.subcategory,
-                "brand": p.brand,
-                "price": p.price,
-                "image_url": p.image_url,
-            }
-            for p in products
-        ]
-        products_df = pd.DataFrame(products_data)
+            # Fetch all products
+            result = await db.execute(select(Product))
+            products = result.scalars().all()
+            products_data = [
+                {
+                    "product_id": p.product_id,
+                    "name": p.name,
+                    "category": p.category,
+                    "subcategory": p.subcategory,
+                    "brand": p.brand,
+                    "price": p.price,
+                    "image_url": p.image_url,
+                }
+                for p in products
+            ]
+            products_df = pd.DataFrame(products_data)
 
-        # Ensure string types
-        for col in ["customer_id", "product_id", "event_type"]:
-            if col in events_df.columns:
-                events_df[col] = events_df[col].astype(str)
+            # Ensure string types
+            for col in ["customer_id", "product_id", "event_type"]:
+                if col in events_df.columns:
+                    events_df[col] = events_df[col].astype(str)
 
-        for col in ["product_id", "category", "brand"]:
-            if col in products_df.columns:
-                products_df[col] = products_df[col].astype(str)
+            for col in ["product_id", "category", "brand"]:
+                if col in products_df.columns:
+                    products_df[col] = products_df[col].astype(str)
 
-        # Train model
-        recommender_engine.train(events_df, products_df)
+            # Train model
+            recommender_engine.train(events_df, products_df)
 
-        # Store recommendations in DB
-        await _store_recommendations(db)
+            # Store recommendations in DB
+            await _store_recommendations(db)
 
-        logger.info("Model training completed successfully.")
-    except Exception as e:
-        logger.error(f"Training failed: {e}", exc_info=True)
+            await db.commit()
+            logger.info("Model training completed successfully.")
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Training failed: {e}", exc_info=True)
 
 
 async def _store_recommendations(db: AsyncSession) -> None:

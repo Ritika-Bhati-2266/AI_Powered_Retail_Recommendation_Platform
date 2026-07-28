@@ -210,7 +210,6 @@ class OfferEngine:
                 "purchase_count": 0,
                 "purchase_events": 0,
                 "cart_events": 0,
-                "total_views": 0,
                 "lifetime_value": 0.0,
                 "avg_price_purchased": 0.0,
                 "days_since_first_event": 999,

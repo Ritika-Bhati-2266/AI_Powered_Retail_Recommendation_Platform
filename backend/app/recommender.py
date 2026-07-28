@@ -13,7 +13,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
-from scipy.sparse import csr_matrix, lil_matrix
+from scipy.sparse import csr_matrix, coo_matrix
 from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import normalize
@@ -51,11 +51,15 @@ class RecommendationEngine:
 
         self._product_details = products_df.set_index("product_id").to_dict(orient="index")
 
-        # Identify users and items
+        # Identify users and items.
+        # NOTE: items are restricted to the current product catalog only.
+        # We intentionally do NOT include product_ids that appear in events_df
+        # but not in products_df — those are discontinued/invalid products and
+        # including them let the model recommend items with no real details
+        # (they'd fall back to "Unknown Product" / price 0.0 downstream).
         event_users = events_df["customer_id"].unique()
-        event_product_ids = events_df["product_id"].dropna().unique()
         all_product_ids = products_df["product_id"].unique()
-        all_items = sorted(set(event_product_ids) | set(all_product_ids))
+        all_items = sorted(set(all_product_ids))
         all_users = sorted(event_users)
 
         self._user_ids = all_users
@@ -67,9 +71,7 @@ class RecommendationEngine:
         n_items = len(all_items)
         logger.info(f"Building matrix: {n_users} users x {n_items} items")
 
-        # Build interaction matrix with weighted events
-        mat = lil_matrix((n_users, n_items), dtype=np.float32)
-
+        # ── Build interaction matrix with weighted events (vectorized) ──
         event_weights = {
             "purchase": 5.0,
             "add_to_cart": 3.0,
@@ -80,20 +82,22 @@ class RecommendationEngine:
             "remove_from_cart": -1.0,
         }
 
-        for _, row in events_df.iterrows():
-            uid = row.get("customer_id")
-            pid = row.get("product_id")
-            if not uid or not pid:
-                continue
-            if uid not in self._user_index or pid not in self._item_index:
-                continue
-            u_idx = self._user_index[uid]
-            p_idx = self._item_index[pid]
-            weight = event_weights.get(row.get("event_type", ""), 0.5)
-            mat[u_idx, p_idx] += weight
+        valid = (
+            events_df["customer_id"].isin(self._user_index)
+            & events_df["product_id"].isin(self._item_index)
+        )
+        sub = events_df.loc[valid, ["customer_id", "product_id", "event_type"]]
 
-        # Log transform + convert to CSR
-        mat = mat.tocsr()
+        if len(sub) > 0:
+            rows = sub["customer_id"].map(self._user_index).to_numpy()
+            cols = sub["product_id"].map(self._item_index).to_numpy()
+            vals = sub["event_type"].map(event_weights).fillna(0.5).to_numpy(dtype=np.float32)
+
+            mat = coo_matrix((vals, (rows, cols)), shape=(n_users, n_items), dtype=np.float32).tocsr()
+        else:
+            mat = csr_matrix((n_users, n_items), dtype=np.float32)
+
+        # Log transform, preserving sign
         mat.data = np.log1p(np.abs(mat.data)) * np.sign(mat.data)
         self._interaction_matrix = mat
 
@@ -112,7 +116,8 @@ class RecommendationEngine:
         content_df = pd.concat([cat_dummies, brand_dummies, price_dummies], axis=1)
         content_df.index = products_df["product_id"]
 
-        # Build vectors in item order
+        # Build vectors in item order (all_items == products_df["product_id"]
+        # now, so every id is guaranteed present in content_df.index)
         content_vecs = []
         for pid in all_items:
             if pid in content_df.index:
@@ -158,7 +163,7 @@ class RecommendationEngine:
         self.svd.fit(mat)
 
         self._user_factors = self.svd.transform(mat)
-        self._item_factors = self.svd.components_.T * self.svd.singular_values_
+        self._item_factors = self.svd.components_.T
 
         self._is_trained = True
         logger.info(
@@ -179,11 +184,11 @@ class RecommendationEngine:
         """Generate top-N hybrid recommendations."""
         if not self._is_trained or self.svd is None:
             logger.warning("Model not trained, returning fallback.")
-            return self._fallback_recommendations(n)
+            return self._fallback_recommendations(n, events_df)
 
         if customer_id not in self._user_index:
             logger.warning(f"Customer {customer_id} not found.")
-            return self._fallback_recommendations(n)
+            return self._fallback_recommendations(n, events_df)
 
         user_idx = self._user_index[customer_id]
         user_vec = self._user_factors[user_idx]
@@ -257,10 +262,30 @@ class RecommendationEngine:
 
         return recommendations
 
-    def _fallback_recommendations(self, n: int = 10) -> list[dict]:
-        """Return trending/popular items when model is unavailable."""
+    def _fallback_recommendations(
+        self, n: int = 10, events_df: Optional[pd.DataFrame] = None
+    ) -> list[dict]:
+        """
+        Return trending/popular items when the model is unavailable or the
+        customer is unknown (cold start).
+
+        Ranked by actual interaction popularity (event count per product)
+        when events_df is available, falling back to price-descending only
+        if no event data is passed in at all.
+        """
         if not self._product_details:
             return []
+
+        if events_df is not None and len(events_df) > 0:
+            counts = (
+                events_df["product_id"]
+                .dropna()
+                .value_counts()
+                .to_dict()
+            )
+        else:
+            counts = {}
+
         scored = []
         for pid, details in self._product_details.items():
             scored.append({
@@ -271,7 +296,12 @@ class RecommendationEngine:
                 "reason_code": "popular",
                 "reason_text": "Popular item",
             })
-        scored.sort(key=lambda x: x["price"], reverse=True)
+
+        if counts:
+            scored.sort(key=lambda x: counts.get(x["product_id"], 0), reverse=True)
+        else:
+            scored.sort(key=lambda x: x["price"], reverse=True)
+
         return scored[:n]
 
     def get_reason_code(

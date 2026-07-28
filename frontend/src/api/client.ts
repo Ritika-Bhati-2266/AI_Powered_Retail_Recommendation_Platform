@@ -2,7 +2,7 @@ import type { Customer, CustomerFull, Recommendation, Offer, Product } from '../
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {
     super(message);

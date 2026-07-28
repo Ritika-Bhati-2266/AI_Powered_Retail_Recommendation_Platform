@@ -26,10 +26,16 @@ const CATEGORY_ICONS: Record<string, typeof Smartphone> = {
   Clothing: Shirt,
   'Home & Kitchen': Sofa,
   Books: BookOpen,
-  Sports: Dumbbell,
-  Beauty: Sparkles,
-  Toys: Gamepad2,
-  Grocery: Apple,
+  'Sports & Outdoors': Dumbbell,
+  'Beauty & Personal Care': Sparkles,
+  'Toys & Games': Gamepad2,
+  'Grocery & Gourmet': Apple,
+  Automotive: Smartphone,
+  'Baby & Kids': Shirt,
+  'Health & Wellness': Sparkles,
+  'Music & Media': BookOpen,
+  'Office & Stationery': Package,
+  'Pet Supplies': Package,
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -37,10 +43,16 @@ const CATEGORY_COLORS: Record<string, string> = {
   Clothing: 'from-pink-500/20 to-pink-600/10 border-pink-700/30',
   'Home & Kitchen': 'from-amber-500/20 to-amber-600/10 border-amber-700/30',
   Books: 'from-emerald-500/20 to-emerald-600/10 border-emerald-700/30',
-  Sports: 'from-blue-500/20 to-blue-600/10 border-blue-700/30',
-  Beauty: 'from-purple-500/20 to-purple-600/10 border-purple-700/30',
-  Toys: 'from-orange-500/20 to-orange-600/10 border-orange-700/30',
-  Grocery: 'from-lime-500/20 to-lime-600/10 border-lime-700/30',
+  'Sports & Outdoors': 'from-blue-500/20 to-blue-600/10 border-blue-700/30',
+  'Beauty & Personal Care': 'from-purple-500/20 to-purple-600/10 border-purple-700/30',
+  'Toys & Games': 'from-orange-500/20 to-orange-600/10 border-orange-700/30',
+  'Grocery & Gourmet': 'from-lime-500/20 to-lime-600/10 border-lime-700/30',
+  Automotive: 'from-cyan-500/20 to-cyan-600/10 border-cyan-700/30',
+  'Baby & Kids': 'from-pink-500/20 to-pink-600/10 border-pink-700/30',
+  'Health & Wellness': 'from-purple-500/20 to-purple-600/10 border-purple-700/30',
+  'Music & Media': 'from-emerald-500/20 to-emerald-600/10 border-emerald-700/30',
+  'Office & Stationery': 'from-zinc-500/20 to-zinc-600/10 border-zinc-700/30',
+  'Pet Supplies': 'from-amber-500/20 to-amber-600/10 border-amber-700/30',
 };
 
 const CATEGORY_ICON_COLORS: Record<string, string> = {
@@ -48,10 +60,16 @@ const CATEGORY_ICON_COLORS: Record<string, string> = {
   Clothing: 'text-pink-400',
   'Home & Kitchen': 'text-amber-400',
   Books: 'text-emerald-400',
-  Sports: 'text-blue-400',
-  Beauty: 'text-purple-400',
-  Toys: 'text-orange-400',
-  Grocery: 'text-lime-400',
+  'Sports & Outdoors': 'text-blue-400',
+  'Beauty & Personal Care': 'text-purple-400',
+  'Toys & Games': 'text-orange-400',
+  'Grocery & Gourmet': 'text-lime-400',
+  Automotive: 'text-cyan-400',
+  'Baby & Kids': 'text-pink-400',
+  'Health & Wellness': 'text-purple-400',
+  'Music & Media': 'text-emerald-400',
+  'Office & Stationery': 'text-zinc-400',
+  'Pet Supplies': 'text-amber-400',
 };
 
 function getCategoryIcon(category: string) {

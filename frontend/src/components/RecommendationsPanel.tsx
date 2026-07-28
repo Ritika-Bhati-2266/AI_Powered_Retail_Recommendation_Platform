@@ -69,17 +69,6 @@ function hashId(id: string): number {
   return Math.abs(hash);
 }
 
-function useProductEnhancements(product: Recommendation) {
-  return useMemo(() => {
-    const h = hashId(product.product_id);
-    const rating = product.rating ?? (3.5 + (h % 15) / 10);
-    const hasDiscount = (h % 5) !== 0;
-    const discount = product.discount_percent ?? (hasDiscount ? 10 + (h % 25) : 0);
-    const originalPrice = product.original_price ?? (discount > 0 ? Math.round(product.price / (1 - discount / 100) * 100) / 100 : product.price);
-    return { rating: Math.min(5, Math.round(rating * 10) / 10), discount, originalPrice };
-  }, [product]);
-}
-
 function StarRating({ rating }: { rating: number }) {
   const full = Math.floor(rating);
   const half = rating - full >= 0.5;
@@ -124,6 +113,23 @@ export default function RecommendationsPanel({
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const enhancements = useMemo(() => {
+    const map: Record<string, { rating: number; discount: number; originalPrice: number }> = {};
+    for (const rec of recommendations) {
+      const h = hashId(rec.product_id);
+      const rating = rec.rating ?? (3.5 + (h % 15) / 10);
+      const hasDiscount = (h % 5) !== 0;
+      const discount = rec.discount_percent ?? (hasDiscount ? 10 + (h % 25) : 0);
+      const originalPrice = rec.original_price ?? (discount > 0 ? Math.round(rec.price / (1 - discount / 100) * 100) / 100 : rec.price);
+      map[rec.product_id] = {
+        rating: Math.min(5, Math.round(rating * 10) / 10),
+        discount,
+        originalPrice,
+      };
+    }
+    return map;
+  }, [recommendations]);
 
   useEffect(() => {
     if (!customerId || !consentStatus) return;
@@ -198,7 +204,7 @@ export default function RecommendationsPanel({
       {!loading && !error && recommendations.length > 0 && (
         <div className="grid grid-cols-2 gap-3">
           {recommendations.map((rec) => {
-            const { rating, discount, originalPrice } = useProductEnhancements(rec);
+            const { rating, discount, originalPrice } = enhancements[rec.product_id] || { rating: 0, discount: 0, originalPrice: rec.price };
             return (
               <div
                 key={rec.product_id}

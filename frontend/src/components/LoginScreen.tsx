@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag, Search, ShoppingCart, Sun, BrainCircuit, Star, Smartphone, Shirt, BookOpen, Gamepad2, X } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { apiClient, ApiError } from '../api/client';
 import type { CustomerFull } from '../types';
 
 const CATEGORIES = [
@@ -82,7 +82,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
       const customer = await apiClient.loginByEmail(trimmed);
       onLogin(customer);
     } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('404')) {
+      if (err instanceof ApiError && err.status === 404) {
         setError('No account found with that email.');
       } else {
         setError('Something went wrong. Please try again.');

@@ -10,6 +10,7 @@ CURRENCY_CONFIG: dict[str, dict] = {
     "USD": {"symbol": "$", "rate_to_usd": 1.0},
     "INR": {"symbol": "₹", "rate_to_usd": 83.0},
     "EUR": {"symbol": "€", "rate_to_usd": 0.92},
+    "JPY": {"symbol": "¥", "rate_to_usd": 150.0},
 }
 
 DEFAULT_CURRENCY = "USD"

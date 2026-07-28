@@ -34,7 +34,7 @@ class ConsentService:
         )
         self.db.add(log_entry)
 
-    async def right_to_forget(self, customer_id: str) -> None:
+    async def right_to_forget(self, customer_id: str, regulator: str = "GDPR") -> None:
         """
         GDPR/DPDP Right to Forget:
         - Delete all events for the customer
@@ -44,7 +44,19 @@ class ConsentService:
         - Set consent_given = False
         - Log the 'forgotten' action
         - The customer record itself stays (minimal record that right was exercised)
+        - Prior consent_log history is preserved as an audit trail
+
+        Raises:
+            ValueError: if no customer with the given customer_id exists.
         """
+        # 0. Confirm the customer actually exists before doing anything
+        result = await self.db.execute(
+            select(Customer).where(Customer.customer_id == customer_id)
+        )
+        customer = result.scalar_one_or_none()
+        if customer is None:
+            raise ValueError(f"Customer {customer_id} not found")
+
         now = utcnow()
 
         # 1. Delete all events for customer
@@ -67,24 +79,24 @@ class ConsentService:
             delete(CustomerOffer).where(CustomerOffer.customer_id == customer_id)
         )
 
-        # 5. Remove previous consent logs for this customer
-        await self.db.execute(
-            delete(ConsentLog).where(ConsentLog.customer_id == customer_id)
-        )
+        # Note: consent_log is intentionally NOT deleted here.
+        # It contains no behavioural/personal data (just action + regulator +
+        # timestamp) and controllers are generally expected to retain proof
+        # that consent was given/withdrawn (e.g. GDPR Art. 7(1)).
 
-        # 6. Set consent_given = False on the customer record
+        # 5. Set consent_given = False on the customer record
         await self.db.execute(
             update(Customer)
             .where(Customer.customer_id == customer_id)
             .values(consent_given=False, consent_timestamp=now)
         )
 
-        # 7. Log the 'forgotten' action
+        # 6. Log the 'forgotten' action, tagged with the actual applicable regulator
         forgotten_log = ConsentLog(
             id=str(uuid.uuid4()),
             customer_id=customer_id,
             action="forgotten",
-            dp_act="GDPR",
+            dp_act=regulator,
             timestamp=now,
         )
         self.db.add(forgotten_log)

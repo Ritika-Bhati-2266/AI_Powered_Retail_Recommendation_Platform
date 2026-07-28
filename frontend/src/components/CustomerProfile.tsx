@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   ShieldX,
 } from 'lucide-react';
+import { formatPrice } from '../utils/formatPrice';
 import type { CustomerFull } from '../types';
 
 interface CustomerProfileProps {
@@ -79,7 +80,7 @@ export default function CustomerProfile({ customer }: CustomerProfileProps) {
     },
     {
       label: 'Lifetime Value',
-      value: `$${customer.metrics.lifetime_value.toFixed(2)}`,
+      value: formatPrice(customer.metrics.lifetime_value, customer.currency === 'INR' ? '₹' : customer.currency === 'EUR' ? '€' : customer.currency === 'JPY' ? '¥' : '$'),
       icon: DollarSign,
       color: 'text-amber-400',
     },
