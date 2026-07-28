@@ -47,6 +47,15 @@ export default {
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
+      keyframes: {
+        'fade-in-up': {
+          '0%': { opacity: '0', transform: 'translate(-50%, 1rem)' },
+          '100%': { opacity: '1', transform: 'translate(-50%, 0)' },
+        },
+      },
+      animation: {
+        'fade-in-up': 'fade-in-up 0.3s ease-out',
+      },
     },
   },
   plugins: [],

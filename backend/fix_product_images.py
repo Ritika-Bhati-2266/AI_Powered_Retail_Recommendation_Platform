@@ -18,7 +18,7 @@ async def main():
 
         count = 0
         for idx, product in enumerate(products):
-            new_url = get_product_image_url(product.product_id, product.category or "", idx)
+            new_url = get_product_image_url(product.product_id, product.category or "", product.subcategory or "")
             if product.image_url != new_url:
                 product.image_url = new_url
                 count += 1

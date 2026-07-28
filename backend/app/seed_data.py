@@ -1090,6 +1090,56 @@ SEGMENTS = ["high_value", "bargain_hunter", "new_user", "lapsed", "cart_abandone
 # Images are 400x300 crop via Unsplash CDN. A stable hash of the product_id
 # deterministically selects which image from the pool a product gets.
 # Keys match both the long PRODUCT_DEFINITIONS names and the short DB names.
+SUBCATEGORY_IMAGE_POOL: dict[str, list[str]] = {
+    "Smartphones": [
+        "photo-1511707171634-5f897ff02aa9",
+        "photo-1598327105666-5b89351aff97",
+        "photo-1601784551446-20c9e07cdbdb",
+        "photo-1567581935384-1c9a4e4b2d7b",
+        "photo-1612441807425-7b2d00e0d3f0",
+    ],
+    "Laptops": [
+        "photo-1496181133206-80ce9b88a853",
+        "photo-1517694712202-14dd9538aa97",
+        "photo-1498050108023-c5249f4df085",
+        "photo-1517336714731-489689fd1ca8",
+        "photo-1460925895917-afdab827c52f",
+        "photo-1525547718899-1f09b2f6a8f1",
+    ],
+    "Headphones": [
+        "photo-1505740420928-5e560c06d30e",
+        "photo-1487215078519-e21cc028cb29",
+        "photo-1524678606370-a47f25a7e332",
+        "photo-1546435770-a27c5a2b0b08",
+    ],
+    "Tablets": [
+        "photo-1561154158-bf71efe5c5f1",
+        "photo-1562401086-265b4710c32f",
+        "photo-1587033411391-5d9e51fce5d6",
+    ],
+    "Smartwatches": [
+        "photo-1523275335684-37898b6baf30",
+        "photo-1546868871-af0de0ae72f5",
+        "photo-1508685098169-8a7e1c0fbce7",
+        "photo-1579586337273-19999e5c5bfd",
+    ],
+    "Cameras": [
+        "photo-1510127031640-ca0b0a7b3e8f",
+        "photo-1502920514313-52581002a659",
+        "photo-1526401485004-4695e7a1e8b1",
+    ],
+    "Cables & Chargers": [
+        "photo-1583394833658-8d6520f2dbb0",
+        "photo-1583864885886-a3b2397d6a7c",
+        "photo-1597404292180-3ea86b1a0510",
+    ],
+    "Speakers": [
+        "photo-1608043152269-423dbba4e7e1",
+        "photo-1545454675-3531f5433ba0",
+        "photo-1558089687-f282ffcbc126",
+    ],
+}
+
 CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
     "Electronics": [
         "photo-1519389950473-47ba0277781c",
@@ -1104,8 +1154,6 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1526401485004-4695e7a1e8b1",
         "photo-1502920514313-52581002a659",
         "photo-1517694712202-14dd9538aa97",
-        "photo-1504639725590-34d0984388bd",
-        "photo-1451187580459-43490279c0fa",
         "photo-1531297484001-80022131f5a1",
     ],
     "Clothing": [
@@ -1283,12 +1331,15 @@ def generate_email(first: str, last: str, idx: int) -> str:
     return f"{local}{idx}@{random.choice(domains)}"
 
 
-def get_product_image_url(product_id: str, category: str) -> str:
+def get_product_image_url(product_id: str, category: str, subcategory: str = "") -> str:
     """Return a category-relevant image URL using a stable pool of Unsplash photos.
     Uses a deterministic hash of the product_id so the same product always gets
-    the same image from its category's image pool."""
+    the same image from its category's image pool.
+    When a subcategory-specific pool exists (e.g. Electronics subcategories),
+    images are drawn from that pool for better visual relevance."""
     pool = CATEGORY_IMAGE_POOL.get(category, CATEGORY_IMAGE_POOL.get("Electronics", []))
-    # Stable index from product_id hash (deterministic across Python sessions)
+    if subcategory and subcategory in SUBCATEGORY_IMAGE_POOL:
+        pool = SUBCATEGORY_IMAGE_POOL[subcategory]
     idx = int(hashlib.sha256(product_id.encode()).hexdigest(), 16) % len(pool)
     return f"https://images.unsplash.com/{pool[idx]}?w=400&h=300&fit=crop"
 
@@ -1317,7 +1368,7 @@ def generate_product(product_id: str, category: str, subcategory: str, brand: st
         "rating": rating,
         "discount_percent": discount_percent,
         "original_price": original_price,
-        "image_url": get_product_image_url(product_id, category),
+        "image_url": get_product_image_url(product_id, category, subcategory),
     }
 
 

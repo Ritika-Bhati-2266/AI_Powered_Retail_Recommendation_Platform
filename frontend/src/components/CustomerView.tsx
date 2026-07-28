@@ -104,7 +104,7 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function PremiumProductCard({ product, showAddToCart = true, onAddToCart, onWishlist, onClick }: { product: Product | Recommendation; showAddToCart?: boolean; onAddToCart?: (product: Product | Recommendation) => void; onWishlist?: (product: Product | Recommendation) => void; onClick?: (product: Product | Recommendation) => void; }) {
+function PremiumProductCard({ product, showAddToCart = true, onAddToCart, onWishlist, onClick, isWishlisted = false }: { product: Product | Recommendation; showAddToCart?: boolean; onAddToCart?: (product: Product | Recommendation) => void; onWishlist?: (product: Product | Recommendation) => void; onClick?: (product: Product | Recommendation) => void; isWishlisted?: boolean; }) {
   const Icon = getCategoryIcon(product.category);
   const colorClass = CATEGORY_COLORS[product.category] || 'from-zinc-500/20 to-zinc-600/10 border-zinc-700/30';
   const iconColor = CATEGORY_ICON_COLORS[product.category] || 'text-zinc-400';
@@ -144,15 +144,15 @@ function PremiumProductCard({ product, showAddToCart = true, onAddToCart, onWish
         )}
 
         <button
-          onClick={() => onWishlist?.(product)}
-          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-8 h-8 rounded-full bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center hover:bg-rose-500/80" style={{ right: discount > 0 ? undefined : '12px', top: discount > 0 ? '48px' : '12px' }}>
-          <Heart className="w-4 h-4 text-zinc-300" />
+          onClick={(e) => { e.stopPropagation(); onWishlist?.(product); }}
+          className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200 w-8 h-8 rounded-full bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center hover:bg-rose-500/80" style={{ right: discount > 0 ? undefined : '12px', top: discount > 0 ? '48px' : '12px' }}>
+          <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : 'text-zinc-300'}`} />
         </button>
 
         {showAddToCart && (
           <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-2 group-hover:translate-y-0">
             <button
-              onClick={() => onAddToCart?.(product)}
+              onClick={(e) => { e.stopPropagation(); onAddToCart?.(product); }}
               className="w-full flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-semibold py-2.5 rounded-xl border border-white/20 transition-all">
               <Plus className="w-3.5 h-3.5" />
               Add to Cart
@@ -175,7 +175,7 @@ function PremiumProductCard({ product, showAddToCart = true, onAddToCart, onWish
             )}
           </div>
           <button
-            onClick={() => onAddToCart?.(product)}
+            onClick={(e) => { e.stopPropagation(); onAddToCart?.(product); }}
             className="w-9 h-9 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 flex items-center justify-center transition-all group/add">
             <ShoppingCart className="w-4 h-4 text-purple-400 group-hover/add:text-purple-300 transition-colors" />
           </button>
@@ -185,7 +185,7 @@ function PremiumProductCard({ product, showAddToCart = true, onAddToCart, onWish
   );
 }
 
-function ProductDetailModal({ product, onClose, onAddToCart, onWishlist }: { product: Product | Recommendation; onClose: () => void; onAddToCart?: (product: Product | Recommendation) => void; onWishlist?: (product: Product | Recommendation) => void; }) {
+function ProductDetailModal({ product, onClose, onAddToCart, onWishlist, isWishlisted = false }: { product: Product | Recommendation; onClose: () => void; onAddToCart?: (product: Product | Recommendation) => void; onWishlist?: (product: Product | Recommendation) => void; isWishlisted?: boolean; }) {
   const Icon = getCategoryIcon(product.category);
   const colorClass = CATEGORY_COLORS[product.category] || 'from-zinc-500/20 to-zinc-600/10 border-zinc-700/30';
   const iconColor = CATEGORY_ICON_COLORS[product.category] || 'text-zinc-400';
@@ -271,11 +271,91 @@ function ProductDetailModal({ product, onClose, onAddToCart, onWishlist }: { pro
               onClick={() => { onWishlist?.(product); }}
               className="flex items-center justify-center gap-2 bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-300 text-sm font-semibold py-3 px-4 rounded-xl border border-zinc-700/50 transition-all"
             >
-              <Heart className="w-4 h-4" />
-              Wishlist
+              <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
+              {isWishlisted ? 'Wishlisted' : 'Wishlist'}
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CartPanel({ items, onClose, onRemove, onCheckout }: { items: Map<string, { product: Product | Recommendation; quantity: number }>; onClose: () => void; onRemove: (productId: string) => void; onCheckout: () => void; }) {
+  const itemArray = Array.from(items.values());
+  const total = itemArray.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md bg-zinc-900 border-l border-zinc-800 h-full flex flex-col shadow-2xl shadow-purple-600/10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+          <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+            <ShoppingCart className="w-5 h-5 text-purple-400" />
+            Your Cart ({itemArray.reduce((c, i) => c + i.quantity, 0)})
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+            <X className="w-4 h-4 text-zinc-400" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          {itemArray.length === 0 && (
+            <div className="text-center py-12">
+              <ShoppingCart className="w-16 h-16 text-zinc-700 mx-auto mb-3" />
+              <p className="text-zinc-500 text-sm">Your cart is empty</p>
+            </div>
+          )}
+          {itemArray.map(({ product, quantity }) => (
+            <div key={product.product_id} className="flex items-center gap-3 bg-zinc-800/30 rounded-xl p-3 border border-zinc-800/50">
+              <div className="w-14 h-14 rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0">
+                {product.image_url && (
+                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-zinc-200 truncate">{product.name}</p>
+                <p className="text-xs text-zinc-500">{formatPrice(product.price, product.symbol)} × {quantity}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="text-sm font-semibold text-purple-400">{formatPrice(product.price * quantity, product.symbol)}</p>
+                <button onClick={() => onRemove(product.product_id)} className="text-xs text-zinc-500 hover:text-rose-400 transition-colors mt-0.5">Remove</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {itemArray.length > 0 && (
+          <div className="border-t border-zinc-800 px-5 py-4 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-zinc-400">Total</span>
+              <span className="text-lg font-bold text-purple-400">{formatPrice(total, itemArray[0]?.product.symbol)}</span>
+            </div>
+            <button
+              onClick={onCheckout}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white text-sm font-semibold py-3 rounded-xl transition-all"
+            >
+              Checkout ({itemArray.reduce((c, i) => c + i.quantity, 0)} items)
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Toast({ toast }: { toast: { message: string; type: string } | null }) {
+  if (!toast) return null;
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] animate-fade-in-up">
+      <div className="bg-zinc-800/95 backdrop-blur-md border border-zinc-700/50 rounded-xl px-5 py-3 shadow-xl shadow-purple-600/10 flex items-center gap-2.5">
+        <div className={`w-2 h-2 rounded-full ${toast.type === 'success' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+        <span className="text-sm text-zinc-200">{toast.message}</span>
       </div>
     </div>
   );
@@ -320,16 +400,66 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   const [navbarSearch, setNavbarSearch] = useState('');
 
   const [selectedProduct, setSelectedProduct] = useState<Product | Recommendation | null>(null);
+  const [cartItems, setCartItems] = useState<Map<string, { product: Product | Recommendation; quantity: number }>>(new Map());
+  const [wishlistItems, setWishlistItems] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+  const [showCart, setShowCart] = useState(false);
 
   const sessionId = useMemo(() => `session_${crypto.randomUUID()}`, []);
 
+  const showToast = useCallback((message: string, type: string = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 2500);
+  }, []);
+
+  const cartCount = useMemo(() => {
+    let count = 0;
+    cartItems.forEach((item) => { count += item.quantity; });
+    return count;
+  }, [cartItems]);
+
   const handleAddToCart = useCallback((product: Product | Recommendation) => {
     apiClient.trackEvent(customer.customer_id, 'add_to_cart', product.product_id, sessionId);
-  }, [customer.customer_id, sessionId]);
+    setCartItems((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(product.product_id);
+      if (existing) {
+        next.set(product.product_id, { ...existing, quantity: existing.quantity + 1 });
+      } else {
+        next.set(product.product_id, { product, quantity: 1 });
+      }
+      return next;
+    });
+    showToast(`${product.name.substring(0, 30)}… added to cart`);
+  }, [customer.customer_id, sessionId, showToast]);
+
+  const handleRemoveFromCart = useCallback((productId: string) => {
+    setCartItems((prev) => {
+      const next = new Map(prev);
+      const existing = next.get(productId);
+      if (existing && existing.quantity > 1) {
+        next.set(productId, { ...existing, quantity: existing.quantity - 1 });
+      } else {
+        next.delete(productId);
+      }
+      return next;
+    });
+  }, []);
 
   const handleWishlist = useCallback((product: Product | Recommendation) => {
     apiClient.trackEvent(customer.customer_id, 'wishlist', product.product_id, sessionId);
-  }, [customer.customer_id, sessionId]);
+    setWishlistItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(product.product_id)) {
+        next.delete(product.product_id);
+        showToast(`${product.name.substring(0, 30)}… removed from wishlist`);
+      } else {
+        next.add(product.product_id);
+        showToast(`${product.name.substring(0, 30)}… added to wishlist`);
+      }
+      return next;
+    });
+  }, [customer.customer_id, sessionId, showToast]);
 
   const handleProductClick = useCallback((product: Product | Recommendation) => {
     setSelectedProduct(product);
@@ -417,9 +547,11 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="relative w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+            <button onClick={() => setShowCart(true)} className="relative w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
               <ShoppingCart className="w-4 h-4 text-zinc-300" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-purple-600 to-pink-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center shadow-lg">3</span>
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-gradient-to-br from-purple-600 to-pink-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center shadow-lg px-1">{cartCount}</span>
+              )}
             </button>
 
             <div className="flex items-center gap-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-2.5 py-1.5">
@@ -518,7 +650,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           {!loadingRecs && !recError && recommendations.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {recommendations.slice(0, 10).map((rec) => (
-                <PremiumProductCard key={rec.product_id} product={rec} showAddToCart={false} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onClick={handleProductClick} />
+                <PremiumProductCard key={rec.product_id} product={rec} showAddToCart={false} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onClick={handleProductClick} isWishlisted={wishlistItems.has(rec.product_id)} />
               ))}
             </div>
           )}
@@ -543,7 +675,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           {!loadingRecent && recentlyViewed.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {recentlyViewed.map((product) => (
-                <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onClick={handleProductClick} />
+                <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onClick={handleProductClick} isWishlisted={wishlistItems.has(product.product_id)} />
               ))}
             </div>
           )}
@@ -568,7 +700,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           {!loadingContinue && continueShopping.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               {continueShopping.map((product) => (
-                <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onClick={handleProductClick} />
+                <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onClick={handleProductClick} isWishlisted={wishlistItems.has(product.product_id)} />
               ))}
             </div>
           )}
@@ -591,8 +723,20 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           onClose={closeProductDetail}
           onAddToCart={handleAddToCart}
           onWishlist={handleWishlist}
+          isWishlisted={wishlistItems.has(selectedProduct.product_id)}
         />
       )}
+
+      {showCart && (
+        <CartPanel
+          items={cartItems}
+          onClose={() => setShowCart(false)}
+          onRemove={handleRemoveFromCart}
+          onCheckout={() => { showToast('Checkout feature coming soon!'); setShowCart(false); }}
+        />
+      )}
+
+      <Toast toast={toast} />
     </div>
   );
 }
