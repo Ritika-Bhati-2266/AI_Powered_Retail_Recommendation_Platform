@@ -1,4 +1,4 @@
-# AI-Powered Retail Recommendation Platform
+# AI Powered Retail Recommendation Platform
 
 A production-grade, full-stack e-commerce platform with hyper-personalized product recommendations and segment-based offers. Built with privacy by design — consent-gated, GDPR/DPDP Act compliant, with a live demo mode that requires no signup.
 
