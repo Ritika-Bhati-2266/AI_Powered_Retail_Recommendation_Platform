@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
-from app.models import Customer, Event, Product, CustomerSegment, CustomerOffer, Offer, CustomerCategoryPreference
+from app.models import Customer, Event, Product, CustomerSegment, CustomerOffer, Offer, CustomerCategoryPreference, Order, OrderItem
 from app.offers import OfferEngine
 from app.schemas import CustomerOut, CustomerCreate, CustomerUpdate, CustomerSearchResult, CustomerMetrics, SegmentOut
 from app.utils import utcnow, get_price_tier
@@ -336,19 +336,15 @@ async def _compute_customer_metrics(customer_id: str, db: AsyncSession) -> Custo
     last_event_time = sorted_events[0].event_timestamp if sorted_events else now
     days_since_last = (now - last_event_time).days if last_event_time else 0
 
-    # Lifetime value (sum of purchase prices)
-    lifetime_value = 0.0
-    purchase_product_ids = []
-    for ev in events:
-        if ev.event_type == "purchase" and ev.product_id:
-            purchase_product_ids.append(ev.product_id)
-
-    if purchase_product_ids:
-        prod_result = await db.execute(
-            select(Product).where(Product.product_id.in_(purchase_product_ids))
-        )
-        products = prod_result.scalars().all()
-        lifetime_value = sum(p.price for p in products)
+    # Lifetime value (true total spent = sum of quantity weighted order line totals)
+    from sqlalchemy import select as _sel, func as _func, join as _join
+    lv_result = await db.execute(
+        select(OrderItem.quantity, OrderItem.unit_price)
+        .select_from(OrderItem)
+        .join(Order, Order.order_id == OrderItem.order_id)
+        .where(Order.customer_id == customer_id)
+    )
+    lifetime_value = sum((qty or 0) * (price or 0) for qty, price in lv_result.all())
 
     # Preferred category (by most viewed/purchased)
     category_counts = {}
