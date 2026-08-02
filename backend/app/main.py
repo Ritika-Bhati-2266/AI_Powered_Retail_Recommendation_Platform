@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi import HTTPException
 
 from app.config import settings
 from app.database import create_tables, engine, async_session_factory
@@ -137,6 +138,8 @@ if FRONTEND_DIST.is_dir():
     async def spa_fallback(request, exc):
         if request.url.path.startswith("/api"):
             from fastapi.responses import JSONResponse
+            if isinstance(exc, HTTPException):
+                return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
             return JSONResponse({"detail": "Not Found"}, status_code=404)
         index_path = FRONTEND_DIST / "index.html"
         if index_path.is_file():
