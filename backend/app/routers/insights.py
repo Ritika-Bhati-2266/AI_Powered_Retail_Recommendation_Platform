@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models import Customer, Event, Product
 from app.schemas import ProductSearchResult
 from app.currency import convert_price
+from app.security import require_owner
 
 router = APIRouter(tags=["insights"])
 
@@ -22,6 +23,7 @@ router = APIRouter(tags=["insights"])
 async def get_recently_viewed(
     customer_id: str,
     limit: int = 10,
+    auth: Customer = Depends(require_owner),
     db: AsyncSession = Depends(get_db),
 ):
     """Get the last N distinct products viewed by a customer."""
@@ -87,6 +89,7 @@ async def get_recently_viewed(
 async def get_continue_shopping(
     customer_id: str,
     limit: int = 10,
+    auth: Customer = Depends(require_owner),
     db: AsyncSession = Depends(get_db),
 ):
     """Get products the customer added to cart but hasn't purchased yet."""

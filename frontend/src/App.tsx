@@ -11,7 +11,7 @@ import {
   User,
   ShoppingCart,
 } from 'lucide-react';
-import { apiClient } from './api/client';
+import { apiClient, tokenStore } from './api/client';
 import CustomerSearch from './components/CustomerSearch';
 import CustomerProfile from './components/CustomerProfile';
 import RecommendationsPanel from './components/RecommendationsPanel';
@@ -38,7 +38,6 @@ export default function App() {
 
   const handleLogin = useCallback((c: CustomerFull) => {
     setLoggedInCustomer(c);
-    localStorage.setItem('user_email', c.email);
     if (c.role === 'admin') {
       setMode('admin');
     } else {
@@ -48,7 +47,7 @@ export default function App() {
 
   const handleLogout = useCallback(() => {
     setLoggedInCustomer(null);
-    localStorage.removeItem('user_email');
+    tokenStore.clear();
     setMode('login');
   }, []);
 

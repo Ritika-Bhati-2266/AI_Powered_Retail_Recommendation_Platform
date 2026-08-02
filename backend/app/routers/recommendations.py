@@ -14,6 +14,7 @@ from app.models import Customer, Event, Product, Recommendation, CustomerSegment
 from app.schemas import RecommendationOut
 from app.privacy import ConsentService
 from app.config import settings
+from app.security import require_owner
 from app.utils import utcnow
 from app.currency import convert_price
 from app.models import CustomerCategoryPreference
@@ -53,6 +54,7 @@ def _convert_rec_price(rec: dict, currency: str) -> dict:
 @router.get("/customers/{customer_id}/recommendations", response_model=list[RecommendationOut])
 async def get_recommendations(
     customer_id: str,
+    auth: Customer = Depends(require_owner),
     db: AsyncSession = Depends(get_db),
 ):
     """Get top 10 personalised recommendations for a customer."""

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag, Search, ShoppingCart, Sun, BrainCircuit, Star, Smartphone, Shirt, BookOpen, Gamepad2, X } from 'lucide-react';
+import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag, Search, ShoppingCart, Sun, BrainCircuit, Star, Smartphone, Shirt, BookOpen, Gamepad2, X, Lock } from 'lucide-react';
 import { apiClient, ApiError } from '../api/client';
 import type { CustomerFull } from '../types';
 
@@ -21,11 +21,13 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
   const [selectedPreviewProduct, setSelectedPreviewProduct] = useState<any | null>(null);
 
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupError, setSignupError] = useState<string | null>(null);
   const [categoryPreferences, setCategoryPreferences] = useState<string[]>([]);
@@ -75,43 +77,66 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
   const handleLoginSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = email.trim();
-    if (!trimmed) return;
+    if (!trimmed || !password) return;
     setLoading(true);
     setError(null);
     try {
-      const customer = await apiClient.loginByEmail(trimmed);
+      const res = await apiClient.login(trimmed, password);
+      const customer: CustomerFull = {
+        customer_id: res.customer_id,
+        name: res.name,
+        email: res.email,
+        role: res.role,
+        consent_status: true,
+        segments: [],
+        metrics: {
+          total_views: 0, total_purchases: 0, total_cart_events: 0,
+          total_email_engagement: 0, avg_session_duration_minutes: 0,
+          days_since_last_activity: 0, lifetime_value: 0,
+          preferred_category: '', preferred_price_tier: '',
+        },
+        category_preferences: [],
+      };
       onLogin(customer);
     } catch (err: unknown) {
-      if (err instanceof ApiError && err.status === 404) {
-        setError('No account found with that email.');
+      if (err instanceof ApiError && err.status === 401) {
+        setError('Incorrect email or password.');
       } else {
         setError('Something went wrong. Please try again.');
       }
     } finally {
       setLoading(false);
     }
-  }, [email, onLogin]);
+  }, [email, password, onLogin]);
 
   const handleSignupSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     const name = signupName.trim();
     const email = signupEmail.trim();
     if (!name || !email) return;
+    if (signupPassword.length < 8) {
+      setSignupError('Password must be at least 8 characters.');
+      return;
+    }
     setSignupLoading(true);
     setSignupError(null);
     try {
-      const customer = await apiClient.createCustomer(name, email, categoryPreferences);
+      const customer = await apiClient.createCustomer(name, email, signupPassword, categoryPreferences);
+      // Obtain and store a token for the new account.
+      await apiClient.login(email, signupPassword);
       onLogin(customer);
     } catch (err: any) {
       if (err?.status === 409) {
         setSignupError('This email is already registered. Try signing in instead.');
+      } else if (err?.status === 422) {
+        setSignupError('Password must be at least 8 characters.');
       } else {
         setSignupError(err?.message || 'Failed to create account. Please try again.');
       }
     } finally {
       setSignupLoading(false);
     }
-  }, [signupName, signupEmail, categoryPreferences, onLogin]);
+  }, [signupName, signupEmail, signupPassword, categoryPreferences, onLogin]);
 
   const goToLogin = useCallback(() => {
     setPage('login');
@@ -122,6 +147,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
     setPage('signup');
     setSignupName('');
     setSignupEmail('');
+    setSignupPassword('');
     setSignupError(null);
     setCategoryPreferences([]);
   }, []);
@@ -185,6 +211,23 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                     />
                   </div>
                 </div>
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-zinc-300 mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                    <input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Your password"
+                      required
+                      className="input-dark"
+                    />
+                  </div>
+                </div>
                 {error && (
                   <div className="flex flex-col gap-3 bg-red-900/20 border border-red-800/30 rounded-xl px-4 py-3">
                     <div className="flex items-start gap-2">
@@ -203,7 +246,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                 )}
                 <button
                   type="submit"
-                  disabled={loading || !email.trim()}
+                  disabled={loading || !email.trim() || !password}
                   className="btn-primary w-full"
                 >
                   {loading ? (
@@ -215,7 +258,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                 </button>
               </form>
               <p className="text-xs text-zinc-600 mt-4 text-center">
-                No password required. Enter your email to view your personalised experience.
+                Sign in with the password you chose when you created your account.
               </p>
             </div>
           ) : (
@@ -263,6 +306,24 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                     />
                   </div>
                 </div>
+                <div>
+                  <label htmlFor="signup-password" className="block text-sm font-medium text-zinc-300 mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                    <input
+                      id="signup-password"
+                      type="password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      placeholder="At least 8 characters"
+                      minLength={8}
+                      required
+                      className="input-dark"
+                    />
+                  </div>
+                </div>
                 {signupError && (
                   <div className="flex items-start gap-2 bg-red-900/20 border border-red-800/30 rounded-xl px-4 py-3">
                     <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
@@ -301,7 +362,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                 </div>
                 <button
                   type="submit"
-                  disabled={signupLoading || !signupName.trim() || !signupEmail.trim()}
+                  disabled={signupLoading || !signupName.trim() || !signupEmail.trim() || signupPassword.length < 8}
                   className="btn-primary w-full"
                 >
                   {signupLoading ? (
@@ -313,7 +374,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                 </button>
               </form>
               <p className="text-xs text-zinc-600 mt-4 text-center">
-                Your account will be created with consent enabled. You'll get personalised recommendations.
+                Pick a password (at least 8 characters). Consent is enabled so you get personalised recommendations.
               </p>
             </div>
           )}

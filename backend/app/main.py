@@ -16,7 +16,7 @@ from fastapi import HTTPException
 from app.config import settings
 from app.database import create_tables, engine, async_session_factory
 from app.models import Event, Customer
-from app.seed_data import seed_database
+from app.seed_data import seed_database, ensure_demo_passwords
 from app.offers import OfferEngine
 
 logging.basicConfig(
@@ -47,6 +47,8 @@ async def lifespan(app: FastAPI):
     # Seed data if empty
     async with async_session_factory() as db:
         await seed_database(db)
+        # Backfill demo passwords for any legacy/seed accounts lacking one.
+        await ensure_demo_passwords(db)
         # Always seed offers & assign them (runs even if DB already seeded)
         offer_engine = OfferEngine(db)
         await offer_engine.seed_offers()
@@ -109,6 +111,10 @@ app.include_router(products_router.router, prefix="/api")
 
 from app.routers import orders as orders_router
 app.include_router(orders_router.router, prefix="/api")
+
+# Auth
+from app.routers import auth as auth_router
+app.include_router(auth_router.router, prefix="/api")
 
 # Customer insights
 from app.routers import insights as insights_router

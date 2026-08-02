@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Customer, Product, Event, CustomerSegment, CustomerOffer
 from app.config import settings
 from app.utils import utcnow
+from app.security import hash_password
 
 logger = logging.getLogger(__name__)
 
@@ -1481,6 +1482,7 @@ async def seed_database(db: AsyncSession) -> None:
         consent_timestamp=now,
         created_at=base_date,
         role="admin",
+        password_hash=hash_password(settings.DEMO_PASSWORD),
     )
     db.add(admin_customer)
     customers.append(admin_customer)
@@ -1500,6 +1502,7 @@ async def seed_database(db: AsyncSession) -> None:
             consent_given=consent_given,
             consent_timestamp=now if consent_given else None,
             created_at=base_date + timedelta(days=random.randint(0, 60)),
+            password_hash=hash_password(settings.DEMO_PASSWORD),
         )
         db.add(customer)
         customers.append(customer)
@@ -1645,3 +1648,23 @@ async def seed_database(db: AsyncSession) -> None:
     await offer_engine.assign_offers()
 
     logger.info("Database seeding complete!")
+
+
+async def ensure_demo_passwords(db: AsyncSession) -> None:
+    """Backfill a documented default password for seeded/demo accounts.
+
+    Accounts created before password support (the seeded 500 customers and the
+    seeded admin) have a NULL password_hash. To keep the demo usable we assign
+    them the shared demo password. Real accounts created via signup always have
+    their own password and are unaffected.
+    """
+    from sqlalchemy import update
+    demo_hash = hash_password(settings.DEMO_PASSWORD)
+    result = await db.execute(
+        select(Customer).where(Customer.password_hash.is_(None))
+    )
+    pending = result.scalars().all()
+    for c in pending:
+        c.password_hash = demo_hash
+    if pending:
+        logger.info("Backfilled demo password for %s legacy/seed customer(s).", len(pending))

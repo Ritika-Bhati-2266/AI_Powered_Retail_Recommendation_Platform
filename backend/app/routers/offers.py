@@ -12,6 +12,7 @@ from app.schemas import OfferOut
 from app.offers import OfferEngine
 from app.privacy import ConsentService
 from app.currency import convert_price
+from app.security import require_owner
 
 router = APIRouter(tags=["offers"])
 
@@ -19,6 +20,7 @@ router = APIRouter(tags=["offers"])
 @router.get("/customers/{customer_id}/offers", response_model=list[OfferOut])
 async def get_customer_offers(
     customer_id: str,
+    auth: Customer = Depends(require_owner),
     db: AsyncSession = Depends(get_db),
 ):
     """Get active offers assigned to a customer. Consent-gated."""

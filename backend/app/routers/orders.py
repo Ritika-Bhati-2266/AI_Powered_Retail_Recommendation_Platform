@@ -14,6 +14,7 @@ from app.models import Customer, Product, Order, OrderItem, Event
 from app.schemas import OrderCreate, OrderOut, OrderItemOut
 from app.currency import convert_price
 from app.utils import utcnow
+from app.security import require_owner
 
 router = APIRouter(tags=["orders"])
 
@@ -52,10 +53,11 @@ async def _order_out(db: AsyncSession, order: Order) -> OrderOut:
 
 @router.post("/customers/{customer_id}/orders", response_model=OrderOut, status_code=201)
 async def place_order(
-    customer_id: str,
-    payload: OrderCreate,
-    db: AsyncSession = Depends(get_db),
-):
+        customer_id: str,
+        payload: OrderCreate,
+        auth: Customer = Depends(require_owner),
+        db: AsyncSession = Depends(get_db),
+    ):
     """Place an order from cart line items. Prices are computed server-side
     from the actual product prices (client-sent prices are ignored). Also
     emits a `purchase` event per line item so it feeds the recommender and
@@ -124,6 +126,7 @@ async def place_order(
 @router.get("/customers/{customer_id}/orders", response_model=list[OrderOut])
 async def get_order_history(
     customer_id: str,
+    auth: Customer = Depends(require_owner),
     db: AsyncSession = Depends(get_db),
 ):
     """Return order history for a customer, newest first."""
@@ -146,6 +149,7 @@ async def get_order_history(
 async def get_order_detail(
     customer_id: str,
     order_id: str,
+    auth: Customer = Depends(require_owner),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single order detail for a customer."""

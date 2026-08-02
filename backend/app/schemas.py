@@ -58,9 +58,24 @@ class CustomerOut(BaseModel):
 class CustomerCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     email: str = Field(default="", max_length=255)
+    password: str = Field(..., min_length=8, max_length=128, description="Account password (min 8 characters)")
     consent_given: bool = True
     currency: str = "USD"
     category_preferences: list[str] = Field(default_factory=list, description="Categories the customer is interested in (cold-start)")
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(..., min_length=1, max_length=255)
+    password: str = Field(..., min_length=1, max_length=128)
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    customer_id: str
+    name: str
+    email: str
+    role: str = "customer"
 
 
 class CustomerUpdate(BaseModel):

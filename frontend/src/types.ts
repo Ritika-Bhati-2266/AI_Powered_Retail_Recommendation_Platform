@@ -30,6 +30,15 @@ export interface CustomerFull extends Customer {
   category_preferences?: string[];
 }
 
+export interface AuthResult {
+  access_token: string;
+  token_type: string;
+  customer_id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
 export interface Product {
   product_id: string;
   name: string;

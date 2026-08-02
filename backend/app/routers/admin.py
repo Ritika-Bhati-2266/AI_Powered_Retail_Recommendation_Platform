@@ -29,6 +29,9 @@ router = APIRouter(tags=["admin"])
 recommender_engine = None
 
 
+from app.security import get_current_customer
+
+
 def set_recommender_engine(engine):
     """Inject recommender engine from main.py."""
     global recommender_engine
@@ -36,21 +39,14 @@ def set_recommender_engine(engine):
 
 
 async def verify_admin_access(
-    x_user_email: Optional[str] = Header(None, alias="X-User-Email"),
-    db: AsyncSession = Depends(get_db),
-):
-    if not x_user_email:
-        raise HTTPException(
-            status_code=401,
-            detail="Authentication required. Please log in."
-        )
-    
-    # Query database to find if this customer is an admin
-    result = await db.execute(
-        select(Customer).where(func.lower(Customer.email) == x_user_email.strip().lower())
-    )
-    customer = result.scalar_one_or_none()
-    if not customer or customer.role != "admin":
+    customer: Customer = Depends(get_current_customer),
+) -> Customer:
+    """Require a valid bearer token whose account role is 'admin'.
+
+    Admin privilege is determined from the token-authenticated customer's role
+    in the database — not from a trustable-on-its-own email header.
+    """
+    if customer.role != "admin":
         raise HTTPException(
             status_code=403,
             detail="Access denied. Admin privileges required."

@@ -1,4 +1,4 @@
-import type { Customer, CustomerFull, Recommendation, Offer, Product, Order } from '../types';
+import type { Customer, CustomerFull, Recommendation, Offer, Product, Order, AuthResult } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -11,14 +11,27 @@ export class ApiError extends Error {
   }
 }
 
+export const tokenStore = {
+  get(): string | null {
+    return sessionStorage.getItem('access_token');
+  },
+  set(token: string): void {
+    sessionStorage.setItem('access_token', token);
+  },
+  clear(): void {
+    sessionStorage.removeItem('access_token');
+  },
+};
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${path}`;
   const headers = new Headers(options?.headers);
   headers.set('Content-Type', 'application/json');
 
-  const email = localStorage.getItem('user_email');
-  if (email) {
-    headers.set('X-User-Email', email);
+  // The bearer token is the source of truth for who the user is.
+  const token = tokenStore.get();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
   const response = await fetch(url, {
@@ -94,16 +107,22 @@ export const apiClient = {
     return request<string[]>('/products/categories');
   },
 
-  loginByEmail(email: string): Promise<CustomerFull> {
-    return request<CustomerFull>(`/customers/by-email?email=${encodeURIComponent(email)}`);
+  async login(email: string, password: string): Promise<AuthResult> {
+    const res = await request<AuthResult>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    tokenStore.set(res.access_token);
+    return res;
   },
 
-  createCustomer(name: string, email: string, categoryPreferences?: string[]): Promise<CustomerFull> {
+  async createCustomer(name: string, email: string, password: string, categoryPreferences?: string[]): Promise<CustomerFull> {
     return request<CustomerFull>('/customers', {
       method: 'POST',
       body: JSON.stringify({
         name,
         email,
+        password,
         consent_given: true,
         category_preferences: categoryPreferences || [],
       }),

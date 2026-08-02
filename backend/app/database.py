@@ -4,6 +4,7 @@ Auto-detects SQLite vs Postgres from the DATABASE_URL.
 """
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import inspect, text as sa_text
 from typing import AsyncGenerator
 
 from app.config import settings
@@ -53,3 +54,22 @@ async def create_tables() -> None:
     """Create all tables defined in models if they don't exist."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Lightweight additive migration: add password_hash if missing (existing DBs)
+        await _ensure_columns(conn)
+
+
+async def _ensure_columns(conn) -> None:
+    """Add columns that may be missing on pre-existing databases (additive only)."""
+    cols = await conn.run_sync(_existing_columns, "customers")
+    if cols is not None and "password_hash" not in cols:
+        await conn.execute(
+            sa_text("ALTER TABLE customers ADD COLUMN password_hash VARCHAR(255)")
+        )
+
+
+def _existing_columns(conn, table: str) -> set[str] | None:
+    """Return the existing column names for a table, or None if unavailable."""
+    try:
+        return {c["name"] for c in inspect(conn).get_columns(table)}
+    except Exception:
+        return None

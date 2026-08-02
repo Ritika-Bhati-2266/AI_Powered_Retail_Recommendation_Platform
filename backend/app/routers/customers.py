@@ -16,6 +16,7 @@ from app.offers import OfferEngine
 from app.schemas import CustomerOut, CustomerCreate, CustomerUpdate, CustomerSearchResult, CustomerMetrics, SegmentOut
 from app.utils import utcnow, get_price_tier
 from app.currency import convert_price, get_available_currencies
+from app.security import hash_password, require_owner, get_current_customer
 
 router = APIRouter(tags=["customers"])
 
@@ -42,6 +43,7 @@ async def create_customer(
         consent_given=payload.consent_given,
         consent_timestamp=now if payload.consent_given else None,
         currency=currency,
+        password_hash=hash_password(payload.password),
         created_at=now,
     )
 
@@ -125,6 +127,7 @@ async def create_customer(
 @router.get("/customers/by-email", response_model=CustomerOut)
 async def get_customer_by_email(
     email: str = Query(..., description="Customer email address"),
+    auth: Customer = Depends(get_current_customer),
     db: AsyncSession = Depends(get_db),
 ):
     """Look up a customer by email. Used for customer-facing login."""
@@ -202,6 +205,7 @@ async def get_currencies():
 async def update_customer_settings(
     customer_id: str,
     payload: CustomerUpdate,
+    auth: Customer = Depends(require_owner),
     db: AsyncSession = Depends(get_db),
 ):
     """Update customer settings (e.g. currency preference)."""
@@ -248,6 +252,7 @@ async def update_customer_settings(
 @router.get("/customers/{customer_id}", response_model=CustomerOut)
 async def get_customer_profile(
     customer_id: str,
+    auth: Customer = Depends(require_owner),
     db: AsyncSession = Depends(get_db),
 ):
     """Get full customer profile with metrics and segments."""
