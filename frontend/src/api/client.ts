@@ -1,4 +1,4 @@
-import type { Customer, CustomerFull, Recommendation, Offer, Product } from '../types';
+import type { Customer, CustomerFull, Recommendation, Offer, Product, Order } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -143,5 +143,24 @@ export const apiClient = {
     return request<Product[]>(
       `/customers/${encodeURIComponent(customerId)}/continue-shopping?limit=${limit}`
     );
+  },
+
+  placeOrder(customerId: string, items: { product_id: string; quantity: number }[], shipping?: { name?: string; address?: string }): Promise<Order> {
+    return request<Order>(`/customers/${encodeURIComponent(customerId)}/orders`, {
+      method: 'POST',
+      body: JSON.stringify({
+        items,
+        shipping_name: shipping?.name,
+        shipping_address: shipping?.address,
+      }),
+    });
+  },
+
+  getOrders(customerId: string): Promise<Order[]> {
+    return request<Order[]>(`/customers/${encodeURIComponent(customerId)}/orders`);
+  },
+
+  getOrder(customerId: string, orderId: string): Promise<Order> {
+    return request<Order>(`/customers/${encodeURIComponent(customerId)}/orders/${encodeURIComponent(orderId)}`);
   },
 };

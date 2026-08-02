@@ -154,6 +154,38 @@ class CustomerCategoryPreference(Base):
     customer = relationship("Customer", back_populates="category_preferences")
 
 
+class Order(Base):
+    """A customer order placed through checkout."""
+    __tablename__ = "orders"
+
+    order_id = Column(String(36), primary_key=True, default=_uuid)
+    customer_id = Column(String(36), ForeignKey("customers.customer_id"), nullable=False, index=True)
+    total_amount = Column(Float, nullable=False, default=0.0)
+    currency = Column(String(3), nullable=False, default="USD")
+    status = Column(String(20), nullable=False, default="placed")
+    shipping_name = Column(String(255), nullable=True)
+    shipping_address = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=utcnow, nullable=False, index=True)
+
+    order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+
+
+class OrderItem(Base):
+    """A line item within an order. Stores a price/product snapshot so order
+    history remains accurate even if the catalogue changes later."""
+    __tablename__ = "order_items"
+
+    order_item_id = Column(String(36), primary_key=True, default=_uuid)
+    order_id = Column(String(36), ForeignKey("orders.order_id"), nullable=False, index=True)
+    product_id = Column(String(36), ForeignKey("products.product_id"), nullable=True)
+    product_name_snapshot = Column(String(255), nullable=False)
+    quantity = Column(Integer, nullable=False, default=1)
+    unit_price = Column(Float, nullable=False, default=0.0)
+    subtotal = Column(Float, nullable=False, default=0.0)
+
+    order = relationship("Order", back_populates="order_items")
+
+
 class User(Base):
     """OAuth-authenticated user for MCP access control."""
     __tablename__ = "users"

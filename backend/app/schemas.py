@@ -145,6 +145,40 @@ class ProductOut(BaseModel):
         from_attributes = True
 
 
+# ── Order ────────────────────────────────────────────────────────────────────
+
+class OrderItemCreate(BaseModel):
+    product_id: str
+    quantity: int = Field(default=1, ge=1)
+
+
+class OrderCreate(BaseModel):
+    items: list[OrderItemCreate] = Field(..., min_length=1)
+    shipping_name: Optional[str] = None
+    shipping_address: Optional[str] = None
+
+
+class OrderItemOut(BaseModel):
+    order_item_id: str
+    product_id: Optional[str] = None
+    product_name_snapshot: str
+    quantity: int
+    unit_price: float
+    subtotal: float
+
+
+class OrderOut(BaseModel):
+    order_id: str
+    customer_id: str
+    total_amount: float
+    currency: str = "USD"
+    status: str = "placed"
+    shipping_name: Optional[str] = None
+    shipping_address: Optional[str] = None
+    created_at: datetime
+    items: list[OrderItemOut] = []
+
+
 # ── Admin ────────────────────────────────────────────────────────────────────
 
 class AdminActionOut(BaseModel):

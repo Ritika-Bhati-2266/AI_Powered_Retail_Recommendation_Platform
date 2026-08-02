@@ -23,11 +23,12 @@ import {
   X,
   Tag,
   Eye,
+  Receipt,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
 import ProductSearch from './ProductSearch';
 import { formatPrice } from '../utils/formatPrice';
-import type { CustomerFull, Recommendation, Product } from '../types';
+import type { CustomerFull, Recommendation, Product, Order } from '../types';
 
 const CATEGORY_ICONS: Record<string, typeof Smartphone> = {
   Electronics: Smartphone,
@@ -281,7 +282,7 @@ function ProductDetailModal({ product, onClose, onAddToCart, onWishlist, isWishl
   );
 }
 
-function CartPanel({ items, onClose, onRemove, onCheckout }: { items: Map<string, { product: Product | Recommendation; quantity: number }>; onClose: () => void; onRemove: (productId: string) => void; onCheckout: () => void; }) {
+function CartPanel({ items, onClose, onRemove, onCheckout, submitting = false }: { items: Map<string, { product: Product | Recommendation; quantity: number }>; onClose: () => void; onRemove: (productId: string) => void; onCheckout: () => void; submitting?: boolean; }) {
   const itemArray = Array.from(items.values());
   const total = itemArray.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
@@ -338,9 +339,10 @@ function CartPanel({ items, onClose, onRemove, onCheckout }: { items: Map<string
             </div>
             <button
               onClick={onCheckout}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white text-sm font-semibold py-3 rounded-xl transition-all"
+              disabled={submitting}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 text-white text-sm font-semibold py-3 rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Checkout ({itemArray.reduce((c, i) => c + i.quantity, 0)} items)
+              {submitting ? 'Placing order...' : `Checkout (${itemArray.reduce((c, i) => c + i.quantity, 0)} items)`}
             </button>
           </div>
         )}
@@ -356,6 +358,58 @@ function Toast({ toast }: { toast: { message: string; type: string } | null }) {
       <div className="bg-zinc-800/95 backdrop-blur-md border border-zinc-700/50 rounded-xl px-5 py-3 shadow-xl shadow-purple-600/10 flex items-center gap-2.5">
         <div className={`w-2 h-2 rounded-full ${toast.type === 'success' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
         <span className="text-sm text-zinc-200">{toast.message}</span>
+      </div>
+    </div>
+  );
+}
+
+function OrderHistoryModal({ orders, symbolFor, onClose, loading, error }: { orders: Order[]; symbolFor: (currency: string) => string; onClose: () => void; loading: boolean; error: boolean; }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl shadow-purple-600/10" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-purple-400" />
+            Order History
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+            <X className="w-4 h-4 text-zinc-400" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {loading && <p className="text-sm text-zinc-500 py-8 text-center">Loading your orders...</p>}
+          {!loading && error && <p className="text-sm text-rose-400 py-8 text-center">Could not load order history.</p>}
+          {!loading && !error && orders.length === 0 && (
+            <div className="text-center py-12">
+              <Receipt className="w-14 h-14 text-zinc-700 mx-auto mb-3" />
+              <p className="text-zinc-500 text-sm">No orders yet. Place items in your cart and check out!</p>
+            </div>
+          )}
+          {orders.map((order) => (
+            <div key={order.order_id} className="bg-zinc-800/30 border border-zinc-800/50 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-200">Order #{order.order_id.slice(0, 8)}</p>
+                  <p className="text-xs text-zinc-500">{new Date(order.created_at).toLocaleString()}</p>
+                </div>
+                <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${order.status === 'placed' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-zinc-700/40 text-zinc-300'}`}>{order.status}</span>
+              </div>
+              <div className="space-y-1.5 mb-3">
+                {order.items.map((item) => (
+                  <div key={item.order_item_id} className="flex items-center justify-between text-sm">
+                    <span className="text-zinc-300 truncate pr-3">{item.product_name_snapshot} × {item.quantity}</span>
+                    <span className="text-zinc-400 flex-shrink-0">{formatPrice(item.subtotal, symbolFor(order.currency))}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
+                <span className="text-sm text-zinc-400">Total</span>
+                <span className="text-base font-bold text-purple-400">{formatPrice(order.total_amount, symbolFor(order.currency))}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -404,6 +458,11 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   const [wishlistItems, setWishlistItems] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
   const [showCart, setShowCart] = useState(false);
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [orderError, setOrderError] = useState(false);
+  const [showOrders, setShowOrders] = useState(false);
 
   const sessionId = useMemo(() => `session_${crypto.randomUUID()}`, []);
 
@@ -445,6 +504,39 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
       return next;
     });
   }, []);
+
+  const currencySymbol = useCallback((currency: string) => currencies[currency] || '$', [currencies]);
+
+  const handleCheckout = useCallback(async () => {
+    if (cartItems.size === 0 || submittingOrder) return;
+    setSubmittingOrder(true);
+    const items = Array.from(cartItems.values()).map(({ product, quantity }) => ({
+      product_id: product.product_id,
+      quantity,
+    }));
+    try {
+      const order = await apiClient.placeOrder(customer.customer_id, items);
+      setCartItems(new Map());
+      setShowCart(false);
+      showToast(`Order placed! #${order.order_id.slice(0, 8)} — ${formatPrice(order.total_amount, currencySymbol(order.currency))}`);
+    } catch (err: any) {
+      setShowCart(false);
+      const msg = (err?.message || '').replace(/^API error \d+:\s*/, '');
+      showToast(msg || 'Checkout failed. Please try again.', 'error');
+    } finally {
+      setSubmittingOrder(false);
+    }
+  }, [cartItems, customer.customer_id, submittingOrder, showToast, currencySymbol]);
+
+  const openOrderHistory = useCallback(() => {
+    setShowOrders(true);
+    setLoadingOrders(true);
+    setOrderError(false);
+    apiClient.getOrders(customer.customer_id)
+      .then((data) => setOrders(data))
+      .catch(() => setOrderError(true))
+      .finally(() => setLoadingOrders(false));
+  }, [customer.customer_id]);
 
   const handleWishlist = useCallback((product: Product | Recommendation) => {
     apiClient.trackEvent(customer.customer_id, 'wishlist', product.product_id, sessionId);
@@ -552,6 +644,10 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-gradient-to-br from-purple-600 to-pink-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center shadow-lg px-1">{cartCount}</span>
               )}
+            </button>
+
+            <button onClick={openOrderHistory} title="Order History" className="w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+              <Receipt className="w-4 h-4 text-zinc-300" />
             </button>
 
             <div className="flex items-center gap-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-2.5 py-1.5">
@@ -732,7 +828,18 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           items={cartItems}
           onClose={() => setShowCart(false)}
           onRemove={handleRemoveFromCart}
-          onCheckout={() => { showToast('Checkout feature coming soon!'); setShowCart(false); }}
+          onCheckout={handleCheckout}
+          submitting={submittingOrder}
+        />
+      )}
+
+      {showOrders && (
+        <OrderHistoryModal
+          orders={orders}
+          symbolFor={currencySymbol}
+          onClose={() => setShowOrders(false)}
+          loading={loadingOrders}
+          error={orderError}
         />
       )}
 

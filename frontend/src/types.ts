@@ -77,3 +77,24 @@ export interface SystemStats {
   total_assignments: number;
   segment_distribution: SegmentCount[];
 }
+
+export interface OrderItem {
+  order_item_id: string;
+  product_id?: string;
+  product_name_snapshot: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+}
+
+export interface Order {
+  order_id: string;
+  customer_id: string;
+  total_amount: number;
+  currency: string;
+  status: string;
+  shipping_name?: string;
+  shipping_address?: string;
+  created_at: string;
+  items: OrderItem[];
+}
