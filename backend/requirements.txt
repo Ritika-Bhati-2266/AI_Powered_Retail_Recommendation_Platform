@@ -14,4 +14,4 @@ python-dotenv
 typing_extensions
 joblib
 PyJWT
-bcrypt
+bcrypt==5.0.0

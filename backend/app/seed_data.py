@@ -1482,7 +1482,7 @@ async def seed_database(db: AsyncSession) -> None:
         consent_timestamp=now,
         created_at=base_date,
         role="admin",
-        password_hash=hash_password(settings.DEMO_PASSWORD),
+        password_hash=hash_password(settings.DEMO_PASSWORD, rounds=10),
     )
     db.add(admin_customer)
     customers.append(admin_customer)
@@ -1502,7 +1502,7 @@ async def seed_database(db: AsyncSession) -> None:
             consent_given=consent_given,
             consent_timestamp=now if consent_given else None,
             created_at=base_date + timedelta(days=random.randint(0, 60)),
-            password_hash=hash_password(settings.DEMO_PASSWORD),
+            password_hash=hash_password(settings.DEMO_PASSWORD, rounds=10),
         )
         db.add(customer)
         customers.append(customer)
@@ -1659,7 +1659,7 @@ async def ensure_demo_passwords(db: AsyncSession) -> None:
     their own password and are unaffected.
     """
     from sqlalchemy import update
-    demo_hash = hash_password(settings.DEMO_PASSWORD)
+    demo_hash = hash_password(settings.DEMO_PASSWORD, rounds=10)
     result = await db.execute(
         select(Customer).where(Customer.password_hash.is_(None))
     )

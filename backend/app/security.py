@@ -31,9 +31,13 @@ async def __get_authorization_header(authorization: str | None = Header(None)) -
 logger = logging.getLogger(__name__)
 
 
-def hash_password(plain: str) -> str:
-    """Hash a plaintext password with a random salt."""
-    return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+def hash_password(plain: str, rounds: int = 12) -> str:
+    """Hash a plaintext password with a random salt.
+
+    Real user passwords use the default cost (rounds=12). Demo/seed data may
+    pass a lower cost (e.g. rounds=10) to keep seeded startup fast.
+    """
+    return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt(rounds=rounds)).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str | None) -> bool:
