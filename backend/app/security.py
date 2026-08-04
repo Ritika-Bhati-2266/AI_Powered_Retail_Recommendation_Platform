@@ -104,6 +104,16 @@ async def get_current_customer(
     return customer
 
 
+async def require_admin(current: Customer = Depends(get_current_customer)) -> Customer:
+    """Dependency: caller must be an admin (valid bearer token with role 'admin')."""
+    if current.role != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. Admin privileges required.",
+        )
+    return current
+
+
 async def require_owner(
     customer_id: str,
     current: Customer = Depends(get_current_customer),

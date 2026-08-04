@@ -16,7 +16,7 @@ from app.offers import OfferEngine
 from app.schemas import CustomerOut, CustomerCreate, CustomerUpdate, CustomerSearchResult, CustomerMetrics, SegmentOut
 from app.utils import utcnow, get_price_tier
 from app.currency import convert_price, get_available_currencies
-from app.security import hash_password, require_owner, get_current_customer
+from app.security import hash_password, require_owner, get_current_customer, require_admin
 
 router = APIRouter(tags=["customers"])
 
@@ -167,6 +167,7 @@ async def search_customers(
     q: str = Query(..., min_length=1, description="Search query for name or email"),
     skip: int = Query(default=0, ge=0, description="Number of results to skip"),
     limit: int = Query(default=20, ge=1, le=100, description="Max results"),
+    admin: Customer = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
     """Search customers by name or email using case-insensitive matching."""

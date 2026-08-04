@@ -142,11 +142,16 @@ The project includes a `render.yaml` for one-click deployment on Render. Set the
 
 ## Training the Model
 
-Visit the admin dashboard and click **"Train Model"** or call the API directly:
+Visit the admin dashboard and click **"Train Model"** or call the API directly. Admin endpoints require a valid Bearer token for the seeded admin account (`admin@personalshop.com` / `Customer@2030`):
 
 ```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@personalshop.com","password":"Customer@2030"}' \
+  | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+
 curl -X POST http://localhost:8000/api/admin/train \
-  -H "X-User-Email: admin@personalshop.com"
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 Training runs in the background using scikit-learn's TruncatedSVD. Once complete, recommendations become available for all consenting customers.
@@ -163,8 +168,13 @@ Training runs in the background using scikit-learn's TruncatedSVD. Once complete
 
 ### Right to Forget
 ```bash
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@personalshop.com","password":"Customer@2030"}' \
+  | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
+
 curl -X POST http://localhost:8000/api/admin/right-to-forget/{customer_id} \
-  -H "X-User-Email: admin@personalshop.com"
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 This:

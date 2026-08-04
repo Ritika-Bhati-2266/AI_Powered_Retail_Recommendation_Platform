@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models import Event, Customer, Product
 from app.schemas import EventCreate, EventOut
+from app.security import get_current_customer
 from app.utils import utcnow
 
 router = APIRouter(tags=["events"])
@@ -19,9 +20,17 @@ router = APIRouter(tags=["events"])
 @router.post("/events", response_model=EventOut)
 async def ingest_event(
     event_data: EventCreate,
+    auth: Customer = Depends(get_current_customer),
     db: AsyncSession = Depends(get_db),
 ):
-    """Ingest a customer behaviour event."""
+    """Ingest a customer behaviour event. Token-authenticated: the caller may
+    only submit events for their own account (admins may submit for anyone)."""
+    if auth.role != "admin" and event_data.customer_id != auth.customer_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied: you can only submit events for your own account.",
+        )
+
     # Validate customer exists
     customer = await db.execute(
         select(Customer).where(Customer.customer_id == event_data.customer_id)
