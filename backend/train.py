@@ -42,6 +42,9 @@ async def train():
                 "brand": p.brand,
                 "price": p.price,
                 "image_url": p.image_url,
+                "rating": p.rating,
+                "discount_percent": p.discount_percent,
+                "original_price": p.original_price,
             }
             for p in products
         ]

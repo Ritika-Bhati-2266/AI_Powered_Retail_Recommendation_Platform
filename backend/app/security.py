@@ -117,12 +117,19 @@ async def require_admin(current: Customer = Depends(get_current_customer)) -> Cu
 async def require_owner(
     customer_id: str,
     current: Customer = Depends(get_current_customer),
+    db: AsyncSession = Depends(get_db),
 ) -> Customer:
     """Dependency: caller must own `customer_id`, or be an admin.
 
     The resource path parameter is the source of truth for which customer's data
     is being requested; the token must match it (unless the caller is admin).
+    A non-existent customer returns 404 so callers can distinguish "not found"
+    from "forbidden" regardless of who is asking.
     """
+    result = await db.execute(select(Customer).where(Customer.customer_id == customer_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Customer not found")
     if current.role != "admin" and current.customer_id != customer_id:
         raise HTTPException(
             status_code=403,

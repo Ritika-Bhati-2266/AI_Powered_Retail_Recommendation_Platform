@@ -24,7 +24,9 @@ venv/
 
 # Database
 *.db
+*.db.fixbak
 *.sqlite3
+*.pkl.fixbak
 
 # IDE
 .vscode/
