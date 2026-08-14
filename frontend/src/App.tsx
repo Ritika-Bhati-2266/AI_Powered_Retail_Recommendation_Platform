@@ -29,6 +29,7 @@ type AdminTab = 'dashboard' | 'analytics' | 'products';
 export default function App() {
   const [mode, setMode] = useState<AppMode>('login');
   const [loggedInCustomer, setLoggedInCustomer] = useState<CustomerFull | null>(null);
+  const [restoring, setRestoring] = useState(true);
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [customer, setCustomer] = useState<CustomerFull | null>(null);
@@ -38,6 +39,7 @@ export default function App() {
 
   const handleLogin = useCallback((c: CustomerFull) => {
     setLoggedInCustomer(c);
+    tokenStore.setCustomer(c);
     if (c.role === 'admin') {
       setMode('admin');
     } else {
@@ -47,7 +49,7 @@ export default function App() {
 
   const handleLogout = useCallback(() => {
     setLoggedInCustomer(null);
-    tokenStore.clear();
+    tokenStore.clearAll();
     setMode('login');
   }, []);
 
@@ -95,6 +97,45 @@ export default function App() {
     setCustomer(null);
   }, []);
 
+  // Restore the last session on mount so that a page refresh never silently
+  // drops the logged-in user back to the guest/login screen (and an autofill
+  // re-submit no longer fires an unexpected /api/auth/login call).
+  useEffect(() => {
+    const token = tokenStore.get();
+    if (!token) {
+      setRestoring(false);
+      return;
+    }
+    const snapshot = tokenStore.getCustomer();
+    if (snapshot) {
+      setLoggedInCustomer(snapshot);
+      setMode(snapshot.role === 'admin' ? 'admin' : 'customer');
+      // Refresh the profile / verify the token in the background. If the token
+      // is expired the 401 handler below clears the session cleanly.
+      apiClient
+        .getCustomer(snapshot.customer_id)
+        .then((fresh) => {
+          setLoggedInCustomer(fresh);
+          tokenStore.setCustomer(fresh);
+        })
+        .catch(() => {});
+    } else {
+      tokenStore.clearAll();
+    }
+    setRestoring(false);
+  }, []);
+
+  // Central handling for an expired/invalid bearer token (HTTP 401 on any
+  // authenticated request): clear the session and return to login once.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setLoggedInCustomer(null);
+      setMode('login');
+    };
+    window.addEventListener('auth:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
+  }, []);
+
   // Direct URL access check: redirect to login if not admin
   useEffect(() => {
     const checkAuth = () => {
@@ -112,6 +153,14 @@ export default function App() {
     window.addEventListener('hashchange', checkAuth);
     return () => window.removeEventListener('hashchange', checkAuth);
   }, [loggedInCustomer]);
+
+  if (restoring) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+      </div>
+    );
+  }
 
   if (mode === 'login') {
     return (

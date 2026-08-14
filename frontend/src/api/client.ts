@@ -21,6 +21,21 @@ export const tokenStore = {
   clear(): void {
     sessionStorage.removeItem('access_token');
   },
+  getCustomer(): CustomerFull | null {
+    try {
+      const raw = sessionStorage.getItem('customer_profile');
+      return raw ? (JSON.parse(raw) as CustomerFull) : null;
+    } catch {
+      return null;
+    }
+  },
+  setCustomer(c: CustomerFull): void {
+    sessionStorage.setItem('customer_profile', JSON.stringify(c));
+  },
+  clearAll(): void {
+    this.clear();
+    sessionStorage.removeItem('customer_profile');
+  },
 };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -41,6 +56,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const text = await response.text().catch(() => 'Unknown error');
+    // A 401 on an authenticated call means the stored token is invalid/expired.
+    // Only treat /auth/login 401s as normal "wrong credentials" (shown inline by
+    // the login form) — never clear an otherwise-active session for those.
+    if (response.status === 401 && path !== '/auth/login') {
+      const hadToken = !!tokenStore.get();
+      tokenStore.clearAll();
+      if (hadToken) {
+        window.dispatchEvent(new Event('auth:unauthorized'));
+      }
+    }
     throw new ApiError(`API error ${response.status}: ${text}`, response.status);
   }
 

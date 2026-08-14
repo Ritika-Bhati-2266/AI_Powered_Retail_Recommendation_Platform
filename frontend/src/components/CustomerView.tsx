@@ -555,7 +555,12 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
 
   const handleProductClick = useCallback((product: Product | Recommendation) => {
     setSelectedProduct(product);
-  }, []);
+    apiClient.trackEvent(customer.customer_id, 'page_view', product.product_id, sessionId);
+    setRecentlyViewed((prev) => {
+      const next = prev.filter((p) => p.product_id !== product.product_id);
+      return [product, ...next].slice(0, 10);
+    });
+  }, [customer.customer_id, sessionId]);
 
   const closeProductDetail = useCallback(() => {
     setSelectedProduct(null);
@@ -613,6 +618,13 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
       .finally(() => { if (!cancelled) setLoadingContinue(false); });
     return () => { cancelled = true; };
   }, [customer.customer_id]);
+
+  // "Continue Shopping" is cart-based (items added to cart but not purchased).
+  // When the customer hasn't added anything yet, fall back to what they viewed
+  // so the section shows useful continuation items instead of a misleading
+  // cart-empty message.
+  const continueProducts = continueShopping.length > 0 ? continueShopping : recentlyViewed;
+  const loadingContinueSection = loadingContinue || (continueShopping.length === 0 && loadingRecent);
 
   return (
     <div className="min-h-screen bg-black">
@@ -785,17 +797,17 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
             <h2 className="text-xl font-bold text-zinc-100">Continue Shopping</h2>
           </div>
 
-          {loadingContinue && <SkeletonGrid count={5} />}
+          {loadingContinueSection && <SkeletonGrid count={5} />}
 
-          {!loadingContinue && continueShopping.length === 0 && (
+          {!loadingContinueSection && continueProducts.length === 0 && (
             <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-8 text-center">
-              <p className="text-sm text-zinc-400">No items in your cart. Add something to get started!</p>
+              <p className="text-sm text-zinc-400">Nothing here yet. Start browsing or add items to your cart to see suggestions.</p>
             </div>
           )}
 
-          {!loadingContinue && continueShopping.length > 0 && (
+          {!loadingContinueSection && continueProducts.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {continueShopping.map((product) => (
+              {continueProducts.map((product) => (
                 <PremiumProductCard key={product.product_id} product={product} onAddToCart={handleAddToCart} onWishlist={handleWishlist} onClick={handleProductClick} isWishlisted={wishlistItems.has(product.product_id)} />
               ))}
             </div>
