@@ -27,6 +27,18 @@ async def create_customer(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new customer, assign new_user segment, and assign matching offers."""
+    # Deterministic duplicate check before any write, so even a pre-existing DB
+    # without the email unique index reports a clean 409 instead of a 500 or a
+    # silent double-insert.
+    existing = await db.execute(
+        select(Customer.customer_id).where(func.lower(Customer.email) == payload.email.strip().lower())
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email address already exists.",
+        )
+
     # Create customer
     now = utcnow()
     customer_id = str(uuid.uuid4())

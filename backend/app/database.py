@@ -54,17 +54,34 @@ async def create_tables() -> None:
     """Create all tables defined in models if they don't exist."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Lightweight additive migration: add password_hash if missing (existing DBs)
+        # Backfill columns that pre-existing databases may be missing.
         await _ensure_columns(conn)
+
+
+# Columns that older builds shipped without. ``create_all`` never adds columns
+# to an existing table, so without this backfill a legacy database would raise
+# "no such column" on every customer INSERT (e.g. signup) and return a raw 500.
+# (column_name, sqlite DDL, postgres DDL) — defaults are constant so existing
+# rows get a valid value and the NOT NULL constraints stay satisfied.
+_ADDITIVE_CUSTOMER_COLUMNS = [
+    ("consent_timestamp", "consent_timestamp DATETIME", "consent_timestamp TIMESTAMP"),
+    ("role", "role VARCHAR(50) DEFAULT 'customer' NOT NULL", "role VARCHAR(50) DEFAULT 'customer' NOT NULL"),
+    ("currency", "currency VARCHAR(3) DEFAULT 'USD' NOT NULL", "currency VARCHAR(3) DEFAULT 'USD' NOT NULL"),
+    ("password_hash", "password_hash VARCHAR(255)", "password_hash VARCHAR(255)"),
+]
 
 
 async def _ensure_columns(conn) -> None:
     """Add columns that may be missing on pre-existing databases (additive only)."""
+    is_sqlite = _is_sqlite(settings.DATABASE_URL)
     cols = await conn.run_sync(_existing_columns, "customers")
-    if cols is not None and "password_hash" not in cols:
-        await conn.execute(
-            sa_text("ALTER TABLE customers ADD COLUMN password_hash VARCHAR(255)")
-        )
+    if cols is None:
+        return
+    for name, sqlite_ddl, pg_ddl in _ADDITIVE_CUSTOMER_COLUMNS:
+        if name in cols:
+            continue
+        ddl = sqlite_ddl if is_sqlite else pg_ddl
+        await conn.execute(sa_text(f"ALTER TABLE customers ADD COLUMN {ddl}"))
 
 
 def _existing_columns(conn, table: str) -> set[str] | None:

@@ -130,6 +130,8 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
         setSignupError('This email is already registered. Try signing in instead.');
       } else if (err?.status === 422) {
         setSignupError('Password must be at least 8 characters.');
+      } else if (err?.status && err?.status >= 500) {
+        setSignupError('Something went wrong on our end. Please try again.');
       } else {
         setSignupError(err?.message || 'Failed to create account. Please try again.');
       }
