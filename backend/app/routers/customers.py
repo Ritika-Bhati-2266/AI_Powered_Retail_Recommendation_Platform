@@ -11,12 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
-from app.models import Customer, Event, Product, CustomerSegment, CustomerOffer, Offer, CustomerCategoryPreference, Order, OrderItem
+from app.models import (Customer, Event, Product, CustomerSegment, CustomerOffer, Offer,
+                        CustomerCategoryPreference, Order, OrderItem, Recommendation, ConsentLog)
 from app.offers import OfferEngine
 from app.schemas import CustomerOut, CustomerCreate, CustomerUpdate, CustomerSearchResult, CustomerMetrics, SegmentOut
 from app.utils import utcnow, get_price_tier
 from app.currency import convert_price, get_available_currencies
 from app.security import hash_password, require_owner, get_current_customer, require_admin
+from app.privacy import ConsentService
+from app.cache import cache_delete
 
 router = APIRouter(tags=["customers"])
 
@@ -235,6 +238,20 @@ async def update_customer_settings(
             raise HTTPException(status_code=400, detail=f"Invalid currency. Valid: {', '.join(valid_currencies.keys())}")
         customer.currency = payload.currency
 
+    # Consent grant/revoke (privacy guardrail). Persist the new state, timestamp
+    # it, log the action as an audit trail, and invalidate any cached
+    # personalisation so a revocation takes effect immediately.
+    if payload.consent_given is not None and payload.consent_given != customer.consent_given:
+        customer.consent_given = payload.consent_given
+        customer.consent_timestamp = utcnow()
+        consent_service = ConsentService(db)
+        await consent_service.log_consent(
+            customer_id,
+            action="granted" if payload.consent_given else "revoked",
+            dp_act="GDPR",
+        )
+        await cache_delete(f"recs:{customer_id}")
+
     await db.commit()
     await db.refresh(customer)
 
@@ -300,6 +317,135 @@ async def get_customer_profile(
         category_preferences=cat_prefs,
         metrics=metrics,
     )
+
+
+@router.get("/customers/{customer_id}/data-export")
+async def export_customer_data(
+    customer_id: str,
+    auth: Customer = Depends(require_owner),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    GDPR/DPDP Right of Access — return every piece of personal data held about a
+    customer (profile, category prefs, segments, events, recommendations,
+    offers, orders and consent audit trail) as a portable JSON document.
+    Self-only unless the caller is an admin.
+    """
+    customer_result = await db.execute(
+        select(Customer).where(Customer.customer_id == customer_id)
+    )
+    customer = customer_result.scalar_one_or_none()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    category_result = await db.execute(
+        select(CustomerCategoryPreference.category)
+        .where(CustomerCategoryPreference.customer_id == customer_id)
+        .order_by(CustomerCategoryPreference.category)
+    )
+    category_preferences = list(category_result.scalars().all())
+
+    segment_result = await db.execute(
+        select(CustomerSegment)
+        .where(CustomerSegment.customer_id == customer_id)
+        .order_by(CustomerSegment.assigned_at)
+    )
+    segments = segment_result.scalars().all()
+
+    event_result = await db.execute(
+        select(Event).where(Event.customer_id == customer_id).order_by(Event.event_timestamp)
+    )
+    events = event_result.scalars().all()
+
+    rec_result = await db.execute(
+        select(Recommendation).where(Recommendation.customer_id == customer_id)
+    )
+    recommendations = rec_result.scalars().all()
+
+    offer_result = await db.execute(
+        select(Offer, CustomerOffer)
+        .join(CustomerOffer, CustomerOffer.offer_id == Offer.offer_id)
+        .where(CustomerOffer.customer_id == customer_id)
+    )
+    offers = offer_result.all()
+
+    order_result = await db.execute(
+        select(Order).where(Order.customer_id == customer_id).order_by(Order.created_at)
+    )
+    orders = order_result.scalars().all()
+
+    consent_result = await db.execute(
+        select(ConsentLog).where(ConsentLog.customer_id == customer_id).order_by(ConsentLog.timestamp)
+    )
+    consent_logs = consent_result.scalars().all()
+
+    return {
+        "exported_at": utcnow().isoformat(),
+        "customer": {
+            "customer_id": customer.customer_id,
+            "name": customer.name,
+            "email": customer.email,
+            "consent_status": customer.consent_given,
+            "consent_timestamp": customer.consent_timestamp,
+            "currency": customer.currency,
+            "role": customer.role,
+            "created_at": customer.created_at,
+        },
+        "category_preferences": category_preferences,
+        "segments": [
+            {"segment": s.segment, "assigned_at": s.assigned_at.isoformat()}
+            for s in segments
+        ],
+        "events": [
+            {
+                "event_id": e.event_id,
+                "product_id": e.product_id,
+                "event_type": e.event_type,
+                "session_id": e.session_id,
+                "metadata": e.event_metadata,
+                "event_timestamp": e.event_timestamp.isoformat(),
+            }
+            for e in events
+        ],
+        "recommendations": [
+            {
+                "product_id": r.product_id,
+                "score": r.score,
+                "reason_code": r.reason_code,
+                "reason_text": r.reason_text,
+                "generated_at": r.generated_at.isoformat(),
+            }
+            for r in recommendations
+        ],
+        "offers": [
+            {
+                "offer_id": co.offer_id,
+                "title": offer.title,
+                "description": offer.description,
+                "assigned_at": co.assigned_at.isoformat(),
+            }
+            for offer, co in offers
+        ],
+        "orders": [
+            {
+                "order_id": o.order_id,
+                "total_amount": o.total_amount,
+                "currency": o.currency,
+                "status": o.status,
+                "shipping_name": o.shipping_name,
+                "created_at": o.created_at.isoformat(),
+            }
+            for o in orders
+        ],
+        "consent_audit_trail": [
+            {
+                "action": log.action,
+                "dp_act": log.dp_act,
+                "timestamp": log.timestamp.isoformat(),
+            }
+            for log in consent_logs
+        ],
+    }
 
 
 async def _get_category_preferences(customer_id: str, db: AsyncSession) -> list[str]:

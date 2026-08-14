@@ -1535,6 +1535,10 @@ async def seed_database(db: AsyncSession) -> None:
 
     for cust_idx, customer in enumerate(customers):
         customer_id = customer.customer_id
+        # Privacy guardrail: do not generate behavioural events for customers
+        # who have not given consent for personalisation.
+        if not customer.consent_given:
+            continue
         num_events = event_assignments[cust_idx]
 
         # Pick a preferred category for this customer

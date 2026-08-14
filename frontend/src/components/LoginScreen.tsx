@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag, Search, ShoppingCart, Sun, BrainCircuit, Star, Smartphone, Shirt, BookOpen, Gamepad2, X, Lock } from 'lucide-react';
+import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag, Search, ShoppingCart, Sun, BrainCircuit, Star, Smartphone, Shirt, BookOpen, Gamepad2, X, Lock, ShieldCheck } from 'lucide-react';
 import { apiClient, ApiError } from '../api/client';
+import PrivacyModal from './PrivacyModal';
 import type { CustomerFull } from '../types';
 
 const CATEGORIES = [
@@ -19,6 +20,7 @@ type Page = 'landing' | 'login' | 'signup';
 export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) {
   const [page, setPage] = useState<Page>('landing');
   const [selectedPreviewProduct, setSelectedPreviewProduct] = useState<any | null>(null);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -375,8 +377,16 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                   {signupLoading ? 'Creating Account...' : 'Create Account'}
                 </button>
               </form>
-              <p className="text-xs text-zinc-600 mt-4 text-center">
-                Pick a password (at least 8 characters). Consent is enabled so you get personalised recommendations.
+              <p className="text-xs text-zinc-600 mt-4 text-center leading-relaxed">
+                Creating an account enables consent so you get personalised recommendations.
+                By signing up you agree to how we handle your data.{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowPrivacy(true)}
+                  className="text-purple-400 hover:text-purple-300 underline underline-offset-2"
+                >
+                  View Privacy Policy
+                </button>
               </p>
             </div>
           )}
@@ -750,6 +760,23 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
             </div>
           </div>
         </div>
+      )}
+
+      <footer className="border-t border-zinc-800/50 py-6">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col items-center gap-2 text-center">
+          <p className="text-xs text-zinc-500">© {new Date().getFullYear()} PersonalShop</p>
+          <button
+            onClick={() => setShowPrivacy(true)}
+            className="flex items-center gap-1 text-xs text-zinc-400 hover:text-purple-400 transition-colors"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Privacy Policy &amp; Your Data Rights
+          </button>
+        </div>
+      </footer>
+
+      {showPrivacy && (
+        <PrivacyModal onClose={() => setShowPrivacy(false)} />
       )}
     </div>
   );

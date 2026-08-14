@@ -24,9 +24,14 @@ import {
   Tag,
   Eye,
   Receipt,
+  ShieldCheck,
+  ShieldX,
+  Download,
+  Info,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
 import ProductSearch from './ProductSearch';
+import PrivacyModal from './PrivacyModal';
 import { formatPrice } from '../utils/formatPrice';
 import type { CustomerFull, Recommendation, Product, Order } from '../types';
 
@@ -463,6 +468,9 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [orderError, setOrderError] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [updatingConsent, setUpdatingConsent] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
 
   const sessionId = useMemo(() => `session_${crypto.randomUUID()}`, []);
 
@@ -585,6 +593,51 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
       setUpdatingCurrency(false);
     }
   }, [customer.customer_id, customer.currency]);
+
+  const handleConsentToggle = useCallback(async () => {
+    const target = !customer.consent_status;
+    if (!target && !window.confirm('Withdraw consent for personalisation?\n\nBehavioural tracking will stop and personalised recommendations/offers will be disabled. You can re-enable consent at any time.')) {
+      return;
+    }
+    setUpdatingConsent(true);
+    try {
+      const updated = await apiClient.updateConsent(customer.customer_id, target);
+      setCustomer(updated);
+      setRecommendations([]);
+      if (!target) {
+        showToast('Consent revoked. Personalisation has been turned off.', 'success');
+      } else {
+        showToast('Consent granted. Personalisation is now enabled.', 'success');
+      }
+    } catch (err: any) {
+      const msg = (err?.message || '').replace(/^API error \d+:\s*/, '');
+      showToast(msg || 'Could not update consent. Please try again.', 'error');
+    } finally {
+      setUpdatingConsent(false);
+    }
+  }, [customer.customer_id, customer.consent_status, showToast]);
+
+  const handleExportData = useCallback(async () => {
+    setExportingData(true);
+    try {
+      const data = await apiClient.exportCustomerData(customer.customer_id);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `personaldata-${customer.customer_id.slice(0, 8)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('Your data has been downloaded (right of access).', 'success');
+    } catch (err: any) {
+      const msg = (err?.message || '').replace(/^API error \d+:\s*/, '');
+      showToast(msg || 'Could not download your data. Please try again.', 'error');
+    } finally {
+      setExportingData(false);
+    }
+  }, [customer.customer_id, showToast]);
 
   const fetchRecommendations = useCallback(() => {
     let cancelled = false;
@@ -717,6 +770,60 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
       </div>
 
       <main className="max-w-7xl mx-auto px-6 py-6 space-y-10">
+        <section className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {customer.consent_status ? (
+                <ShieldCheck className="w-6 h-6 text-emerald-400" />
+              ) : (
+                <ShieldX className="w-6 h-6 text-red-400" />
+              )}
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">Personalisation Consent</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {customer.consent_status
+                    ? 'On - recommendations & offers are personalised from your behaviour.'
+                    : 'Off - behavioural tracking is stopped and personalisation is disabled.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                onClick={() => setShowPrivacy(true)}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-zinc-300 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 rounded-lg transition-all"
+              >
+                <Info className="w-3.5 h-3.5" />
+                Privacy Policy
+              </button>
+              <button
+                onClick={handleExportData}
+                disabled={exportingData}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-zinc-200 bg-zinc-800/50 hover:bg-zinc-700/50 border border-zinc-700/50 rounded-lg transition-all disabled:opacity-50"
+                title="Download the data we hold about you (right of access)"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {exportingData ? 'Exporting...' : 'Export My Data'}
+              </button>
+              <button
+                onClick={handleConsentToggle}
+                disabled={updatingConsent}
+                className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-all disabled:opacity-50 ${
+                  customer.consent_status
+                    ? 'bg-rose-600/20 text-rose-300 border border-rose-600/40 hover:bg-rose-600/30'
+                    : 'bg-emerald-600/20 text-emerald-300 border border-emerald-600/40 hover:bg-emerald-600/30'
+                }`}
+              >
+                {customer.consent_status ? (
+                  <><ShieldX className="w-3.5 h-3.5" />{updatingConsent ? 'Updating...' : 'Revoke Consent'}</>
+                ) : (
+                  <><ShieldCheck className="w-3.5 h-3.5" />{updatingConsent ? 'Updating...' : 'Enable Consent'}</>
+                )}
+              </button>
+            </div>
+          </div>
+        </section>
+
         <section>
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -853,6 +960,10 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           loading={loadingOrders}
           error={orderError}
         />
+      )}
+
+      {showPrivacy && (
+        <PrivacyModal onClose={() => setShowPrivacy(false)} />
       )}
 
       <Toast toast={toast} />

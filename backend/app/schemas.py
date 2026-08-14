@@ -79,8 +79,9 @@ class AuthResponse(BaseModel):
 
 
 class CustomerUpdate(BaseModel):
-    """Partial update for customer settings (e.g. currency)."""
+    """Partial update for customer settings (e.g. currency, consent)."""
     currency: Optional[str] = None
+    consent_given: Optional[bool] = None
 
 
 class CustomerSearchResult(BaseModel):

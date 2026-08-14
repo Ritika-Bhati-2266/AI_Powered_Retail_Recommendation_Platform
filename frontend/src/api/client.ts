@@ -161,6 +161,19 @@ export const apiClient = {
     });
   },
 
+  updateConsent(customerId: string, consentGiven: boolean): Promise<CustomerFull> {
+    return request<CustomerFull>(`/customers/${encodeURIComponent(customerId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ consent_given: consentGiven }),
+    });
+  },
+
+  exportCustomerData(customerId: string): Promise<Record<string, unknown>> {
+    return request<Record<string, unknown>>(
+      `/customers/${encodeURIComponent(customerId)}/data-export`
+    );
+  },
+
   getCurrencies(): Promise<Record<string, string>> {
     return request<Record<string, string>>('/customers/currencies');
   },

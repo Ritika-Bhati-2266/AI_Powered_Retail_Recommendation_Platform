@@ -35,8 +35,18 @@ async def ingest_event(
     customer = await db.execute(
         select(Customer).where(Customer.customer_id == event_data.customer_id)
     )
-    if not customer.scalar_one_or_none():
+    customer_row = customer.scalar_one_or_none()
+    if not customer_row:
         raise HTTPException(status_code=404, detail="Customer not found")
+
+    # Consent gate (privacy guardrail): do not record behavioural events for a
+    # customer who has not given consent for personalisation. Personal tracking
+    # must only ever happen for consenting users.
+    if not customer_row.consent_given:
+        raise HTTPException(
+            status_code=403,
+            detail="Customer has not given consent for personalisation. Behavioural events are not tracked.",
+        )
 
     # Validate product exists if provided
     if event_data.product_id:
