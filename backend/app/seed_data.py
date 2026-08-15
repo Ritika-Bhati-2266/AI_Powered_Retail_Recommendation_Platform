@@ -1148,7 +1148,7 @@ SUBCATEGORY_IMAGE_POOL: dict[str, list[str]] = {
 }
 
 # Species-specific pools for Pet Supplies so cat products never show a dog photo
-# and vice-versa. All IDs verified live (HTTP 200, image/jpeg).
+# and vice-versa. All IDs species-confirmed and verified live (HTTP 200, image/jpeg).
 PET_CAT_IMAGE_POOL: list[str] = [
     "photo-1514888286974-6c03e2ca1dba",
     "photo-1456677698485-dceeec22c7fc",
@@ -1178,11 +1178,26 @@ PET_CAT_IMAGE_POOL: list[str] = [
     "photo-1608032364895-0da67af36cd2",
     "photo-1548724582-1216ec5351ce",
     "photo-1506891536236-3e07892564b7",
+    "photo-1518791841217-8f162f1e1131",
+    "photo-1573865526739-10659fec78a5",
+    "photo-1519052537078-e6302a4968d4",
+    "photo-1592194996308-7b43878e84a6",
+    "photo-1533738363-b7f9aef128ce",
+    "photo-1529778873920-4da4926a72c2",
+    "photo-1472491235688-bdc81a63246e",
+    "photo-1542665348-1df255e08297",
+    "photo-1496284575094-d5b92db3890d",
+    "photo-1567270671170-fdc10a5bf831",
+    "photo-1495360010541-f48722b34f7d",
+    "photo-1561406186-fa3708c3c15c",
+    "photo-1520560321666-4b36560e7979",
+    "photo-1542736705-53f0131d1e98",
+    "photo-1545919888-f8a7bb889672",
+    "photo-1530991671072-ac4f81c2c3c1",
+    "photo-1496890666403-e6cf521841e6",
 ]
 
 PET_DOG_IMAGE_POOL: list[str] = [
-    "photo-1591160690555-5debfba289f0",
-    "photo-1625794084867-8ddd239946b1",
     "photo-1615233500064-caa995e2f9dd",
     "photo-1602241628512-459cdd3234fe",
     "photo-1693615775129-f2004d6e3e0b",
@@ -1197,6 +1212,18 @@ PET_DOG_IMAGE_POOL: list[str] = [
     "photo-1568572933382-74d440642117",
     "photo-1583511655857-d19b40a7a54e",
     "photo-1516734212186-a967f81ad0d7",
+    "photo-1552053831-71594a27632d",
+    "photo-1518717758536-85ae29035b6d",
+    "photo-1548199973-03cce0bbc87b",
+    "photo-1517849845537-4d257902454a",
+    "photo-1560807707-8cc77767d783",
+    "photo-1647179924662-13b7bc73a886",
+    "photo-1596490634801-c536934af56e",
+    "photo-1535930749574-1399327ce78f",
+    "photo-1557495235-340eb888a9fb",
+    "photo-1583511666372-62fc211f8377",
+    "photo-1587300003388-59208cc962cb",
+    "photo-1543466835-00a7907e9de1",
 ]
 
 CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
@@ -1409,6 +1436,27 @@ def _pet_image_pool(name: str, subcategory: str) -> list[str]:
     return PET_CAT_IMAGE_POOL + PET_DOG_IMAGE_POOL
 
 
+# Shared "already assigned" tracker for Pet Supplies image selection so that
+# within one seeding/migration run every pet product gets a unique photo.
+_pet_assigned_image_ids: set[str] = set()
+
+
+def _pick_pet_image(product_id: str, pool: list[str]) -> str:
+    """Pick a photo for a Pet Supplies product that is unique within this run.
+
+    Starts from the product's hash slot then linear-probes the pool for the
+    first image not already assigned to another pet product. The tracker is
+    shared across all pet pools, so neutral products never reuse an image that
+    a cat or dog product already picked.
+    """
+    start = int(hashlib.sha256(product_id.encode()).hexdigest(), 16) % len(pool)
+    idx = start
+    while pool[idx] in _pet_assigned_image_ids:
+        idx = (idx + 1) % len(pool)
+    _pet_assigned_image_ids.add(pool[idx])
+    return f"https://images.unsplash.com/{pool[idx]}?w=400&h=300&fit=crop"
+
+
 def get_product_image_url(product_id: str, category: str, subcategory: str = "", name: str = "") -> str:
     """Return a category-relevant image URL using a stable pool of Unsplash photos.
     Uses a deterministic hash of the product_id so the same product always gets
@@ -1416,10 +1464,11 @@ def get_product_image_url(product_id: str, category: str, subcategory: str = "",
     When a subcategory-specific pool exists (e.g. Electronics subcategories),
     images are drawn from that pool for better visual relevance.
     Pet Supplies products are drawn from species-specific pools so cat and dog
-    products never mix photos."""
+    products never mix photos, and each pet product gets a unique image within
+    a seeding/migration run."""
     pool = CATEGORY_IMAGE_POOL.get(category, CATEGORY_IMAGE_POOL.get("Electronics", []))
     if category == "Pet Supplies":
-        pool = _pet_image_pool(name, subcategory)
+        return _pick_pet_image(product_id, _pet_image_pool(name, subcategory))
     elif subcategory and subcategory in SUBCATEGORY_IMAGE_POOL:
         pool = SUBCATEGORY_IMAGE_POOL[subcategory]
     idx = int(hashlib.sha256(product_id.encode()).hexdigest(), 16) % len(pool)
