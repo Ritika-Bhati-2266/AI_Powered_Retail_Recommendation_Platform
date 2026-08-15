@@ -1147,6 +1147,58 @@ SUBCATEGORY_IMAGE_POOL: dict[str, list[str]] = {
     ],
 }
 
+# Species-specific pools for Pet Supplies so cat products never show a dog photo
+# and vice-versa. All IDs verified live (HTTP 200, image/jpeg).
+PET_CAT_IMAGE_POOL: list[str] = [
+    "photo-1514888286974-6c03e2ca1dba",
+    "photo-1456677698485-dceeec22c7fc",
+    "photo-1726044781679-7c3f20a185ec",
+    "photo-1556799483-8a3c48110b63",
+    "photo-1558349768-279a6d352b66",
+    "photo-1520772342158-af0a83de0372",
+    "photo-1519468863299-05e2f6f6df56",
+    "photo-1563263330-52f46a1b8de5",
+    "photo-1553366735-5452d07f2c20",
+    "photo-1557312309-a08700b45135",
+    "photo-1512200331909-44d741611b43",
+    "photo-1526837108083-1cee44e4abd0",
+    "photo-1557743952-b088259408a2",
+    "photo-1585373683920-671438c82bfa",
+    "photo-1631307494857-fa85ac2c6c38",
+    "photo-1548546738-8509cb246ed3",
+    "photo-1606491048802-8342506d6471",
+    "photo-1597838816882-4435b1977fbe",
+    "photo-1571570703598-39eb580a0329",
+    "photo-1572171572779-e93ec53b8024",
+    "photo-1548366086-7f1b76106622",
+    "photo-1580784355694-0d5295dcc007",
+    "photo-1599889959407-598566c6e1f1",
+    "photo-1644237698898-f0b63b5ce54e",
+    "photo-1560145393-2f79d01cabc5",
+    "photo-1608032364895-0da67af36cd2",
+    "photo-1548724582-1216ec5351ce",
+    "photo-1506891536236-3e07892564b7",
+]
+
+PET_DOG_IMAGE_POOL: list[str] = [
+    "photo-1591160690555-5debfba289f0",
+    "photo-1625794084867-8ddd239946b1",
+    "photo-1615233500064-caa995e2f9dd",
+    "photo-1602241628512-459cdd3234fe",
+    "photo-1693615775129-f2004d6e3e0b",
+    "photo-1637098063179-d73d8034621c",
+    "photo-1558788353-f76d92427f16",
+    "photo-1588022274642-f238f77ec193",
+    "photo-1513549054-cb3611a004fe",
+    "photo-1633722715463-d30f4f325e24",
+    "photo-1561037404-61cd46aa615b",
+    "photo-1598133894008-61f7fdb8cc3a",
+    "photo-1544568100-847a948585b9",
+    "photo-1568572933382-74d440642117",
+    "photo-1583511655857-d19b40a7a54e",
+    "photo-1516734212186-a967f81ad0d7",
+]
+
 CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
     "Electronics": [
         "photo-1519389950473-47ba0277781c",
@@ -1342,14 +1394,33 @@ def generate_email(first: str, last: str, idx: int) -> str:
     return f"{local}{idx}@{random.choice(domains)}"
 
 
-def get_product_image_url(product_id: str, category: str, subcategory: str = "") -> str:
+def _pet_image_pool(name: str, subcategory: str) -> list[str]:
+    """Pick a species-appropriate image pool for Pet Supplies products."""
+    text = f"{subcategory} {name}".lower()
+    cat_keywords = ["cat", "kitten", "catnip", "kitty"]
+    dog_keywords = ["dog", "puppy", "canine"]
+    has_cat = any(k in text for k in cat_keywords)
+    has_dog = any(k in text for k in dog_keywords)
+    if has_cat:
+        return list(PET_CAT_IMAGE_POOL)
+    if has_dog:
+        return list(PET_DOG_IMAGE_POOL)
+    # Mixed or neutral products (grooming gloves, nail grinders, etc.)
+    return PET_CAT_IMAGE_POOL + PET_DOG_IMAGE_POOL
+
+
+def get_product_image_url(product_id: str, category: str, subcategory: str = "", name: str = "") -> str:
     """Return a category-relevant image URL using a stable pool of Unsplash photos.
     Uses a deterministic hash of the product_id so the same product always gets
     the same image from its category's image pool.
     When a subcategory-specific pool exists (e.g. Electronics subcategories),
-    images are drawn from that pool for better visual relevance."""
+    images are drawn from that pool for better visual relevance.
+    Pet Supplies products are drawn from species-specific pools so cat and dog
+    products never mix photos."""
     pool = CATEGORY_IMAGE_POOL.get(category, CATEGORY_IMAGE_POOL.get("Electronics", []))
-    if subcategory and subcategory in SUBCATEGORY_IMAGE_POOL:
+    if category == "Pet Supplies":
+        pool = _pet_image_pool(name, subcategory)
+    elif subcategory and subcategory in SUBCATEGORY_IMAGE_POOL:
         pool = SUBCATEGORY_IMAGE_POOL[subcategory]
     idx = int(hashlib.sha256(product_id.encode()).hexdigest(), 16) % len(pool)
     return f"https://images.unsplash.com/{pool[idx]}?w=400&h=300&fit=crop"
@@ -1379,7 +1450,7 @@ def generate_product(product_id: str, category: str, subcategory: str, brand: st
         "rating": rating,
         "discount_percent": discount_percent,
         "original_price": original_price,
-        "image_url": get_product_image_url(product_id, category, subcategory),
+        "image_url": get_product_image_url(product_id, category, subcategory, product_name),
     }
 
 
