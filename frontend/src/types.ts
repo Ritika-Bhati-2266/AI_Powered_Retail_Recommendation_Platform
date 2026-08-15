@@ -66,6 +66,8 @@ export interface Offer {
   description: string;
   discount_type: string;
   discount_value: number;
+  discount_percentage?: number;
+  reason?: string;
   valid_until: string;
   currency?: string;
   symbol?: string;

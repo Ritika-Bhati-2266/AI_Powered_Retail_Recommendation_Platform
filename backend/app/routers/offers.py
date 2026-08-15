@@ -43,26 +43,29 @@ async def get_customer_offers(
             detail="Customer has not given consent for personalisation. Offers are unavailable.",
         )
 
-    # 3. Return offers with currency conversion
+    # 3. Return personalised offers with currency conversion. Every offer gets a
+    #    customer-specific discount percentage + reason computed from behaviour.
     offer_engine = OfferEngine(db)
-    offers = await offer_engine.get_offers_for_customer(customer_id)
+    offers = await offer_engine.get_personalised_offers_for_customer(customer_id)
 
     result_list = []
     for offer in offers:
         # Convert discount value only for fixed amounts, not percentages
-        converted_value = offer.discount_value
-        if offer.discount_type in ("fixed", "fixed_amount", "free_shipping") and offer.discount_value > 0:
-            converted_value, _, _ = convert_price(offer.discount_value, customer_currency)
+        converted_value = offer["discount_value"]
+        if offer["discount_type"] in ("fixed", "fixed_amount", "free_shipping") and offer["discount_value"] > 0:
+            converted_value, _, _ = convert_price(offer["discount_value"], customer_currency)
 
         _, cur, sym = convert_price(0, customer_currency)  # Just get currency info
 
         result_list.append(OfferOut(
-            offer_id=offer.offer_id,
-            title=offer.title,
-            description=offer.description,
-            discount_type=offer.discount_type,
+            offer_id=offer["offer_id"],
+            title=offer["title"],
+            description=offer["description"],
+            discount_type=offer["discount_type"],
             discount_value=converted_value,
-            valid_until=offer.valid_until,
+            discount_percentage=offer.get("discount_percentage"),
+            reason=offer.get("reason"),
+            valid_until=offer["valid_until"],
             currency=cur,
             symbol=sym,
         ))

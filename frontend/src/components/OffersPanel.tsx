@@ -20,7 +20,10 @@ function formatDate(dateStr: string): string {
   }
 }
 
-function formatDiscount(discountType: string, discountValue: number): string {
+function formatDiscount(discountType: string, discountValue: number, discountPercentage?: number): string {
+  if (discountPercentage !== undefined && discountType === 'percentage') {
+    return `${discountPercentage}% OFF`;
+  }
   if (discountType === 'fixed' && discountValue === 0) {
     return 'FREE SHIPPING';
   }
@@ -103,6 +106,12 @@ export default function OffersPanel({ customerId }: OffersPanelProps) {
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-semibold text-zinc-200">{offer.title}</h4>
                   <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{offer.description}</p>
+                  {offer.reason && (
+                    <p className="text-xs text-emerald-400/90 mt-1.5 flex items-start gap-1">
+                      <span className="mt-px">✦</span>
+                      <span>{offer.reason}</span>
+                    </p>
+                  )}
                   <div className="flex items-center gap-1.5 mt-2 text-xs text-zinc-500">
                     <CalendarDays className="w-3.5 h-3.5" />
                     <span>Valid until {formatDate(offer.valid_until)}</span>
@@ -110,7 +119,7 @@ export default function OffersPanel({ customerId }: OffersPanelProps) {
                 </div>
                 <div className="shrink-0 bg-gradient-to-r from-amber-900/30 to-amber-800/20 border border-amber-700/40 rounded-xl px-3 py-2 text-center min-w-[100px]">
                   <p className="text-sm font-bold text-amber-400">
-                    {formatDiscount(offer.discount_type, offer.discount_value)}
+                    {formatDiscount(offer.discount_type, offer.discount_value, offer.discount_percentage)}
                   </p>
                 </div>
               </div>

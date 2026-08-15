@@ -119,6 +119,8 @@ class OfferOut(BaseModel):
     description: Optional[str] = None
     discount_type: str
     discount_value: float
+    discount_percentage: Optional[float] = None
+    reason: Optional[str] = None
     valid_until: datetime
     currency: str = "USD"
     symbol: str = "$"

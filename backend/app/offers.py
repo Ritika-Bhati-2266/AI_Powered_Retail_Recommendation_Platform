@@ -9,7 +9,10 @@ from decimal import Decimal
 from sqlalchemy import select, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import CustomerSegment, Offer, CustomerOffer, Event, Product, Customer
+from app.models import (
+    CustomerSegment, Offer, CustomerOffer, Event, Product, Customer,
+    CustomerCategoryPreference,
+)
 from app.utils import utcnow
 
 logger = logging.getLogger(__name__)
@@ -127,6 +130,17 @@ PREDEFINED_OFFERS = [
         "valid_days": 30,
     },
 ]
+
+
+# ── Personalised discount bounds (business-safe) ─────────────────────────────
+
+PERSONALISED_DISCOUNT_MIN = 5.0
+PERSONALISED_DISCOUNT_MAX = 30.0
+
+
+def _clamp_discount(value: float) -> float:
+    """Clamp a computed discount into the business-safe [min, max] range."""
+    return round(max(PERSONALISED_DISCOUNT_MIN, min(PERSONALISED_DISCOUNT_MAX, value)), 1)
 
 
 class OfferEngine:
@@ -383,6 +397,152 @@ class OfferEngine:
             .order_by(Offer.valid_until.asc())
         )
         return list(result.scalars().all())
+
+    async def get_personalised_offers_for_customer(self, customer_id: str) -> list[dict]:
+        """
+        Personalised offer delivery: keep the predefined segment-based offer
+        structure (titles + descriptions), but compute a customer-specific
+        discount percentage and reason from the customer's own behaviour
+        metrics. Every returned offer carries a dynamic `discount_percentage`
+        clamped to [PERSONALISED_DISCOUNT_MIN, PERSONALISED_DISCOUNT_MAX]
+        (5%–30%) plus a short human-readable `reason`.
+        """
+        offers = await self.get_offers_for_customer(customer_id)
+        if not offers:
+            return []
+
+        metrics = await self._compute_metrics(customer_id)
+        category_prefs = await self._get_category_preferences(customer_id)
+
+        items = []
+        for offer in offers:
+            discount_pct, reason = self._compute_personalised_discount(
+                offer.segment, metrics, category_prefs
+            )
+
+            description = offer.description
+            if offer.segment == "new_user" and category_prefs:
+                description = (
+                    f"{offer.description} "
+                    f"Targeted at: {', '.join(category_prefs)}."
+                )
+
+            # Promote the cart-abandoner "free shipping" placeholder into a real
+            # percentage so it scales with the customer's actual abandon ratio.
+            if offer.segment in ("cart_abandoner", "bargain_hunter", "high_value",
+                                 "lapsed", "brand_loyalist", "window_shopper", "power_user"):
+                offer_type = "percentage"
+            else:
+                offer_type = offer.discount_type
+
+            discount_value = discount_pct if offer_type == "percentage" else offer.discount_value
+
+            items.append({
+                "offer_id": offer.offer_id,
+                "title": offer.title,
+                "description": description,
+                "discount_type": offer_type,
+                "discount_value": discount_value,
+                "discount_percentage": discount_pct,
+                "min_purchase": offer.min_purchase,
+                "valid_until": offer.valid_until,
+                "reason": reason,
+            })
+
+        return items
+
+    async def _get_category_preferences(self, customer_id: str) -> list[str]:
+        """Fetch stored category preferences for a customer."""
+        result = await self.db.execute(
+            select(CustomerCategoryPreference.category)
+            .where(CustomerCategoryPreference.customer_id == customer_id)
+            .order_by(CustomerCategoryPreference.category)
+        )
+        return list(result.scalars().all())
+
+    def _compute_personalised_discount(
+        self,
+        segment: str,
+        metrics: dict,
+        category_prefs: list[str] | None = None,
+    ) -> tuple[float, str]:
+        """
+        Compute a customer-specific discount percentage (5–30%) and a short
+        reason from behavioural metrics. Segment-aware business rules.
+
+        - high_value:      LTV / purchase frequency strong -> slightly LOWER
+                           discount (retention already good, protect margin).
+        - bargain_hunter:  cheaper average basket -> bigger discount (price-sensitive).
+        - cart_abandoner:  higher abandon ratio -> bigger recovery incentive.
+        - new_user:        targeted welcome offer on the customer's chosen categories.
+        - lapsed:          longer inactivity -> stronger win-back discount.
+        - brand_loyalist:  higher brand concentration -> bonus reward.
+        - window_shopper:  more browsing -> nudge towards first purchase.
+        - power_user:      high 30-day activity -> appreciation reward.
+        """
+        category_prefs = category_prefs or []
+        days_inactive = metrics.get("days_since_last_activity", 0) or 0
+
+        if segment == "high_value":
+            ltv = metrics.get("lifetime_value", 0.0) or 0.0
+            active_days = metrics.get("days_since_first_event", 1) or 1
+            if active_days >= 999:
+                active_days = 1
+            purchase_frequency = metrics.get("purchase_count", 0) / max(1, active_days / 30.0)
+            reduction = (
+                5.0 * min(ltv / 10000.0, 1.0)
+                + 3.0 * min(purchase_frequency / 2.0, 1.0)
+            )
+            return _clamp_discount(25.0 - reduction), (
+                "Exclusive VIP offer — you're one of our most valuable customers"
+            )
+
+        if segment == "bargain_hunter":
+            avg_price = metrics.get("avg_price_purchased", 0.0) or 0.0
+            price_factor = max(0.0, min((30.0 - avg_price) / 30.0, 1.0))
+            return _clamp_discount(20.0 + 8.0 * price_factor), (
+                "Tuned to your deal-seeking purchase history"
+            )
+
+        if segment == "cart_abandoner":
+            cart_events = metrics.get("cart_events", 0) or 0
+            purchase_events = metrics.get("purchase_events", 0) or 0
+            total = cart_events + purchase_events
+            ratio = cart_events / total if total > 0 else 0.5
+            return _clamp_discount(15.0 + 8.0 * ratio), (
+                "We noticed items left in your cart — finish what you started"
+            )
+
+        if segment == "lapsed":
+            intensity = min(days_inactive / 90.0, 1.0)
+            return _clamp_discount(18.0 + 12.0 * intensity), (
+                f"Win-back offer — {days_inactive} days since your last visit"
+            )
+
+        if segment == "brand_loyalist":
+            pct = max(0.0, min(metrics.get("top_brand_pct", 0.0) or 0.0, 1.0))
+            return _clamp_discount(8.0 + 12.0 * pct), (
+                "Loyalty reward for your favorite brand"
+            )
+
+        if segment == "window_shopper":
+            views = metrics.get("total_views", 0) or 0
+            return _clamp_discount(10.0 + min(views / 20.0, 5.0)), (
+                "We noticed you're browsing — here's a nudge to make your first purchase"
+            )
+
+        if segment == "power_user":
+            events_30d = metrics.get("events_30d", 0) or 0
+            return _clamp_discount(12.0 + min(events_30d / 100.0 * 3.0, 6.0)), (
+                "Reward for being one of our most active shoppers"
+            )
+
+        # new_user (default) — targeted welcome offer.
+        if category_prefs:
+            return 15.0, (
+                f"Welcome offer on {', '.join(category_prefs)} — categories you said you love"
+            )
+        return 12.0, "Welcome offer for new customers"
 
     async def seed_segments(self, customer_id: str) -> None:
         """Assign initial segments for a customer (used during seed data creation)."""
