@@ -2,8 +2,6 @@
 
 A production-grade, full-stack e-commerce platform with hyper-personalized product recommendations and segment-based offers. Built with privacy by design — consent-gated, GDPR/DPDP Act compliant, with a live demo mode that requires no signup.
 
-> **Live demo:** [https://retail-hyper.onrender.com](https://retail-hyper.onrender.com)
-
 ---
 
 ## Architecture
@@ -74,8 +72,8 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 - **Transparent reason codes**: Every recommendation explains why it was made — no black boxes
 
 ### 5. Security Hardening
-- **Environment-based secrets**: JWT `SECRET_KEY` and the MCP signature secret are read from the environment (no hardcoded production secrets); on Render, `SECRET_KEY` is set as an uncommitted secret
-- **Restricted CORS allowlist**: defaults to local dev origins only (not `*`); set `CORS_ORIGINS` to your deployed origin
+- **Environment-based secrets**: JWT `SECRET_KEY` and the MCP signature secret are read from the environment (no hardcoded production secrets)
+- **Restricted CORS allowlist**: defaults to local dev origins only (not `*`); extend `CORS_ORIGINS` in the environment if you need additional origins
 - **bcrypt password hashing** with tunable cost — no plaintext credentials are stored
 - **Bearer token is the source of identity**: `X-User-Email`-style headers are never trusted; every owner-scoped route re-verifies the token
 - **Role enforcement**: admin-only endpoints re-check the authenticated customer's role (no client-asserted role)
@@ -140,20 +138,6 @@ On first startup, the backend automatically:
 2. Seeds 500 customers, 760 products, and ~10,000 behavioural events
 3. Loads a pre-trained ML model if available
 
-### Deploy on Render
-
-The project includes a `render.yaml` for one-click deployment on Render. Set the following environment variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `sqlite+aiosqlite:///./data/personalisation.db` | PostgreSQL URL for production |
-| `REDIS_URL` | (empty) | Redis URL for caching |
-| `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000` | Comma-separated allowed origins — set to your deployed origin (render.yaml ships `https://retail-hyper.onrender.com`) |
-| `SECRET_KEY` | (empty) | **REQUIRED in production** — random JWT signing secret (use the Render secret field, `sync: false`, never a committed value) |
-| `DEMO_PASSWORD` | `Customer@2030` | Default password for the seeded demo/admin accounts |
-
-> **Note on credentials:** `admin@personalshop.com` / `Customer@2030` are the seeded **demo** credentials for local development and testing. For any shared or production deployment set a strong random `SECRET_KEY` and override `DEMO_PASSWORD` via the environment.
-
 ---
 
 ## API Endpoints
@@ -183,7 +167,7 @@ The project includes a `render.yaml` for one-click deployment on Render. Set the
 
 ## Training the Model
 
-Visit the admin dashboard and click **"Train Model"** or call the API directly. Admin endpoints require a valid Bearer token for the seeded admin account (`admin@personalshop.com` / `Customer@2030`; see note below):
+Visit the admin dashboard and click **"Train Model"** or call the API directly. Admin endpoints require a valid Bearer token for the seeded admin account (`admin@personalshop.com` / `Customer@2030`):
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
