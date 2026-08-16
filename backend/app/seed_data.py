@@ -1145,6 +1145,83 @@ SUBCATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1558089687-f282ffcbc126",
         "photo-1591047139829-d91aecb6caea",
     ],
+    "Vitamins & Supplements": [
+        "photo-1670850757896-e1b6c3e311ea",
+        "photo-1624362772755-4d5843e67047",
+        "photo-1732900293895-233f769299b3",
+        "photo-1559087316-6b27308e53f6",
+        "photo-1528272252360-5efd274e36fb",
+        "photo-1729701028046-2bd5b736a6d7",
+        "photo-1664786908163-85ca46f85138",
+        "photo-1592323818181-f9b967ff537c",
+        "photo-1648139346494-2b961c5a2bb7",
+        "photo-1732900490015-a5167a642998",
+        "photo-1670850756917-8ed6c2a71e12",
+    ],
+    "First Aid": [
+        "photo-1684655570542-55afe322a74b",
+        "photo-1619794555233-e563edf91173",
+        "photo-1765996796562-ce301df337a0",
+        "photo-1624638760852-8ede1666ab07",
+        "photo-1600091474842-83bb9c05a723",
+        "photo-1563260324-5ebeedc8af7c",
+        "photo-1564144573017-8dc932e0039e",
+        "photo-1566889035559-b14ef9d4c365",
+    ],
+    "Essential Oils": [
+        "photo-1671493234254-15fc6c91aa87",
+        "photo-1676852148076-7a92002419f3",
+        "photo-1560521166-117ca72366bd",
+        "photo-1671493229066-f36e86b35841",
+        "photo-1671493235081-5842463637cd",
+        "photo-1605040056130-38d9faad3534",
+        "photo-1671493234279-57ef0c8f34e6",
+        "photo-1608571423539-e951b9b3871e",
+        "photo-1671493233620-cc6a416561aa",
+        "photo-1560521166-e4af6324303d",
+        "photo-1671493228013-328eb74b767b",
+    ],
+    "Massage & Relaxation": [
+        "photo-1519824145371-296894a0daa9",
+        "photo-1639162906614-0603b0ae95fd",
+        "photo-1696841212541-449ca29397cc",
+        "photo-1706795033728-9232ef548a16",
+        "photo-1712638932314-e2b185ca0930",
+        "photo-1611073615830-9f76902c10fe",
+        "photo-1741522509438-a120c0bb5e88",
+        "photo-1745327883508-b6cd32e5dde5",
+        "photo-1741522509407-41cfe73b0b75",
+        "photo-1544161515-4ab6ce6db874",
+    ],
+    "Fitness Trackers": [
+        "photo-1575311373937-040b8e1fd5b6",
+        "photo-1579721840641-7d0e67f1204e",
+        "photo-1434494817513-cc112a976e36",
+        "photo-1596236100223-f3c656de3038",
+        "photo-1508685096489-7aacd43bd3b1",
+        "photo-1434494878577-86c23bcb06b9",
+        "photo-1544117519-31a4b719223d",
+        "photo-1597923709001-5a061c88418d",
+        "photo-1503328427499-d92d1ac3d174",
+        "photo-1660844817855-3ecc7ef21f12",
+        "photo-1696688713460-de12ac76ebc6",
+        "photo-1576243345690-4e4b79b63288",
+        "photo-1517502474097-f9b30659dadb",
+    ],
+    "Wellness": [
+        "photo-1740479050129-7fef21254518",
+        "photo-1762331658154-8aa265ca21e5",
+        "photo-1548966268-b978ed7b2e83",
+        "photo-1579126038374-6064e9370f0f",
+        "photo-1579126096454-0029977dcac1",
+        "photo-1602520628350-fbf9db1f02ae",
+        "photo-1556911073-a517e752729c",
+        "photo-1635367216109-aa3353c0c22e",
+        "photo-1579722820308-d74e571900a9",
+        "photo-1758274525887-d95d19269f76",
+        "photo-1770269845802-99a69d9a29a9",
+        "photo-1666979289472-96e6d3245b84",
+    ],
 }
 
 # Species-specific pools for Pet Supplies so cat products never show a dog photo
@@ -1317,12 +1394,42 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1570172619644-dfd03ed5d881",
         "photo-1556228720-195a672e8a03",
         "photo-1596755389378-c31d21fd1273",
+        "photo-1631730486572-226d1f595b68",
+        "photo-1748543668676-ea8241cb3886",
+        "photo-1631730486784-5456119f69ae",
+        "photo-1653784097013-786a8965ea3b",
+        "photo-1583209814683-c023dd293cc6",
+        "photo-1629198688000-71f23e745b6e",
+        "photo-1613803745799-ba6c10aace85",
+        "photo-1667266543254-505cf5b16ec4",
+        "photo-1718490953028-021d352b14fd",
+        "photo-1636740599648-ae84f705fc2e",
+        "photo-1629380108599-ea06489d66f5",
+        "photo-1600634999623-864991678406",
+        "photo-1601049413574-214d105b26e4",
+        "photo-1631730359585-38a4935cbec4",
+        "photo-1633793566189-8e9fe6f817fc",
     ],
     "Beauty": [
         "photo-1487412912498-0447578fcca8",
         "photo-1570172619644-dfd03ed5d881",
         "photo-1556228720-195a672e8a03",
         "photo-1596755389378-c31d21fd1273",
+        "photo-1631730486572-226d1f595b68",
+        "photo-1748543668676-ea8241cb3886",
+        "photo-1631730486784-5456119f69ae",
+        "photo-1653784097013-786a8965ea3b",
+        "photo-1583209814683-c023dd293cc6",
+        "photo-1629198688000-71f23e745b6e",
+        "photo-1613803745799-ba6c10aace85",
+        "photo-1667266543254-505cf5b16ec4",
+        "photo-1718490953028-021d352b14fd",
+        "photo-1636740599648-ae84f705fc2e",
+        "photo-1629380108599-ea06489d66f5",
+        "photo-1600634999623-864991678406",
+        "photo-1601049413574-214d105b26e4",
+        "photo-1631730359585-38a4935cbec4",
+        "photo-1633793566189-8e9fe6f817fc",
     ],
     "Toys & Games": [
         "photo-1596464716127-f2a82984de30",
@@ -1331,6 +1438,21 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1587654780291-39c9404d746b",
         "photo-1566577134770-3d85bb3a9cc4",
         "photo-1563941406054-949225931d52",
+        "photo-1730804518415-75297e8d2a41",
+        "photo-1629760946220-5693ee4c46ac",
+        "photo-1612611741189-a9b9eb01d515",
+        "photo-1588591795084-1770cb3be374",
+        "photo-1494059980473-813e73ee784b",
+        "photo-1611329857570-f02f340e7378",
+        "photo-1677188010559-0667a1ed33a0",
+        "photo-1612385763901-68857dd4c43c",
+        "photo-1637120149073-54319e6f9fc3",
+        "photo-1611517975989-c5882f8d2cf1",
+        "photo-1571397872194-0ad8fbafe058",
+        "photo-1704027689069-747471f0a40a",
+        "photo-1756920681451-3103b5ca092d",
+        "photo-1601987177651-8edfe6c20009",
+        "photo-1590146758445-40be7019507d",
     ],
     "Toys": [
         "photo-1596464716127-f2a82984de30",
@@ -1339,6 +1461,21 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1587654780291-39c9404d746b",
         "photo-1566577134770-3d85bb3a9cc4",
         "photo-1563941406054-949225931d52",
+        "photo-1730804518415-75297e8d2a41",
+        "photo-1629760946220-5693ee4c46ac",
+        "photo-1612611741189-a9b9eb01d515",
+        "photo-1588591795084-1770cb3be374",
+        "photo-1494059980473-813e73ee784b",
+        "photo-1611329857570-f02f340e7378",
+        "photo-1677188010559-0667a1ed33a0",
+        "photo-1612385763901-68857dd4c43c",
+        "photo-1637120149073-54319e6f9fc3",
+        "photo-1611517975989-c5882f8d2cf1",
+        "photo-1571397872194-0ad8fbafe058",
+        "photo-1704027689069-747471f0a40a",
+        "photo-1756920681451-3103b5ca092d",
+        "photo-1601987177651-8edfe6c20009",
+        "photo-1590146758445-40be7019507d",
     ],
     "Grocery & Gourmet": [
         "photo-1488459716781-31db52582fe9",
@@ -1348,6 +1485,18 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1540189549336-e6e99c3679fe",
         "photo-1471193945509-9ad0617afabf",
         "photo-1490645935967-10de6ba17061",
+        "photo-1588964895597-cfccd6e2dbf9",
+        "photo-1515706886582-54c73c5eaf41",
+        "photo-1601600576337-c1d8a0d1373c",
+        "photo-1685640206182-c51b8aa9b686",
+        "photo-1543168256-418811576931",
+        "photo-1628102491629-778571d893a3",
+        "photo-1516594798947-e65505dbb29d",
+        "photo-1557333610-90ee4a951ecf",
+        "photo-1553531889-56cc480ac5cb",
+        "photo-1550989460-0adf9ea622e2",
+        "photo-1521566652839-697aa473761a",
+        "photo-1614907634002-65ac4cb74acb",
     ],
     "Grocery": [
         "photo-1488459716781-31db52582fe9",
@@ -1357,6 +1506,18 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1540189549336-e6e99c3679fe",
         "photo-1471193945509-9ad0617afabf",
         "photo-1490645935967-10de6ba17061",
+        "photo-1588964895597-cfccd6e2dbf9",
+        "photo-1515706886582-54c73c5eaf41",
+        "photo-1601600576337-c1d8a0d1373c",
+        "photo-1685640206182-c51b8aa9b686",
+        "photo-1543168256-418811576931",
+        "photo-1628102491629-778571d893a3",
+        "photo-1516594798947-e65505dbb29d",
+        "photo-1557333610-90ee4a951ecf",
+        "photo-1553531889-56cc480ac5cb",
+        "photo-1550989460-0adf9ea622e2",
+        "photo-1521566652839-697aa473761a",
+        "photo-1614907634002-65ac4cb74acb",
     ],
     "Automotive": [
         "photo-1503376780353-7e6692767b70",
@@ -1365,6 +1526,20 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1533473359331-0135ef1b58bf",
         "photo-1494976388531-d1058494cdd8",
         "photo-1583121274602-3e2820c69888",
+        "photo-1708805282695-ef186db20192",
+        "photo-1732357624591-f2137085659b",
+        "photo-1694678505384-5c28eb08dc60",
+        "photo-1632823469901-5d2cfff5ba50",
+        "photo-1708805282683-50a060eba80f",
+        "photo-1620584898989-d39f7f9ed1b7",
+        "photo-1708805282706-f44730b7e527",
+        "photo-1708805283017-c662be2c7a44",
+        "photo-1694678505374-817757bcae89",
+        "photo-1614888441158-de25f0ea4bc5",
+        "photo-1565689876697-e467b6c54da2",
+        "photo-1620584899131-a5ff5f8fbb03",
+        "photo-1708805282676-0c15476eb8a2",
+        "photo-1520340356584-f9917d1eea6f",
     ],
     "Pet Supplies": [
         "photo-1544568100-847a948585b9",
@@ -1377,24 +1552,66 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1497366216548-37526070297c",
         "photo-1517842645767-c639042777db",
         "photo-1497366811353-6870744d04b2",
+        "photo-1503958014551-3b41f69234d9",
+        "photo-1606327054536-e37e655d4f4a",
+        "photo-1474377207190-a7d8b3334068",
+        "photo-1501959181532-7d2a3c064642",
+        "photo-1508873699372-7aeab60b44ab",
+        "photo-1513077202514-c511b41bd4c7",
+        "photo-1531347334762-59780ece5c76",
+        "photo-1507831228884-93d43e81a99d",
+        "photo-1531256379416-9f000e90aacc",
+        "photo-1510070009289-b5bc34383727",
+        "photo-1531347118459-c3ea7a5ac61e",
+        "photo-1513127971914-6a8656fc9718",
     ],
     "Baby & Kids": [
         "photo-1515488042361-ee00e0ddd4e4",
         "photo-1519689680058-324335c77eba",
         "photo-1544717305-2782549b5136",
-        "photo-1544161515-4ab6ce6db874",
+        "photo-1559454403-b8fb88521f11",
+        "photo-1543346242-2b8e41fb91ca",
+        "photo-1501686637-b7aa9c48a882",
+        "photo-1484820540004-14229fe36ca4",
+        "photo-1589827711524-0fb39b96e630",
+        "photo-1545558014-8692077e9b5c",
+        "photo-1549501602-52168bb8f653",
+        "photo-1685358268305-c621b38e75d8",
+        "photo-1560859251-d563a49c5e4a",
+        "photo-1618842676088-c4d48a6a7c9d",
+        "photo-1622290319146-7b63df48a635",
+        "photo-1505043203398-7e4c111acbfa",
+        "photo-1504484656217-38f8ffc617f9",
+        "photo-1516627145497-ae6968895b74",
     ],
     "Health & Wellness": [
-        "photo-1544367567-0f2fcb009e0b",
-        "photo-1512069772995-ec65ed45afd6",
-        "photo-1506126613408-eca07ce68773",
-        "photo-1550258987-190a2d41a8ba",
+        "photo-1740479050129-7fef21254518",
+        "photo-1548966268-b978ed7b2e83",
+        "photo-1579126038374-6064e9370f0f",
+        "photo-1556911073-a517e752729c",
+        "photo-1635367216109-aa3353c0c22e",
+        "photo-1579722820308-d74e571900a9",
+        "photo-1666979289472-96e6d3245b84",
+        "photo-1528272252360-5efd274e36fb",
+        "photo-1670850757896-e1b6c3e311ea",
     ],
     "Music & Media": [
         "photo-1511379938547-c1f69419868d",
         "photo-1493225457124-a3eb161ffa5f",
         "photo-1514320291840-2e0a9bf2a9ae",
         "photo-1504898770365-14faca6a7320",
+        "photo-1672073314527-cd2d83182992",
+        "photo-1619468654328-5fefe028d42b",
+        "photo-1585838017777-5003198884b5",
+        "photo-1673427079629-418917214ffc",
+        "photo-1550134464-4c07c5b02073",
+        "photo-1543840950-e6529649ce74",
+        "photo-1619983081563-430f63602796",
+        "photo-1580656449278-e8381933522c",
+        "photo-1643698512439-4485caa5a7d1",
+        "photo-1669801158950-f663cf15298c",
+        "photo-1588532218970-c2cab983746a",
+        "photo-1535833438489-c1774eaa5225",
     ],
 }
 
@@ -1436,25 +1653,29 @@ def _pet_image_pool(name: str, subcategory: str) -> list[str]:
     return PET_CAT_IMAGE_POOL + PET_DOG_IMAGE_POOL
 
 
-# Shared "already assigned" tracker for Pet Supplies image selection so that
-# within one seeding/migration run every pet product gets a unique photo.
-_pet_assigned_image_ids: set[str] = set()
+# Shared "already assigned" tracker per image pool (keyed by category or
+# category::subcategory) so that within one seeding/migration run every product
+# gets a unique photo from its pool wherever the pool is large enough.
+_assigned_image_ids: dict[str, set[str]] = {}
 
 
-def _pick_pet_image(product_id: str, pool: list[str]) -> str:
-    """Pick a photo for a Pet Supplies product that is unique within this run.
+def _pick_pool_image(product_id: str, pool_key: str, pool: list[str]) -> str:
+    """Pick a photo unique within this run for the given pool key.
 
     Starts from the product's hash slot then linear-probes the pool for the
-    first image not already assigned to another pet product. The tracker is
-    shared across all pet pools, so neutral products never reuse an image that
-    a cat or dog product already picked.
+    first image not already assigned to another product that draws from the
+    same pool. Falls back to the hash slot if the whole pool is exhausted so
+    re-seeding can never deadlock.
     """
     start = int(hashlib.sha256(product_id.encode()).hexdigest(), 16) % len(pool)
+    used = _assigned_image_ids.setdefault(pool_key, set())
     idx = start
-    while pool[idx] in _pet_assigned_image_ids:
+    for _ in range(len(pool)):
+        if pool[idx] not in used:
+            used.add(pool[idx])
+            return f"https://images.unsplash.com/{pool[idx]}?w=400&h=300&fit=crop"
         idx = (idx + 1) % len(pool)
-    _pet_assigned_image_ids.add(pool[idx])
-    return f"https://images.unsplash.com/{pool[idx]}?w=400&h=300&fit=crop"
+    return f"https://images.unsplash.com/{pool[start]}?w=400&h=300&fit=crop"
 
 
 def get_product_image_url(product_id: str, category: str, subcategory: str = "", name: str = "") -> str:
@@ -1463,16 +1684,17 @@ def get_product_image_url(product_id: str, category: str, subcategory: str = "",
     the same image from its category's image pool.
     When a subcategory-specific pool exists (e.g. Electronics subcategories),
     images are drawn from that pool for better visual relevance.
-    Pet Supplies products are drawn from species-specific pools so cat and dog
-    products never mix photos, and each pet product gets a unique image within
-    a seeding/migration run."""
-    pool = CATEGORY_IMAGE_POOL.get(category, CATEGORY_IMAGE_POOL.get("Electronics", []))
+    Every product gets a unique image within its pool during a seeding/migration
+    run (collision-free assignment). Pet Supplies products are drawn from
+    species-specific pools so cat and dog products never mix photos."""
     if category == "Pet Supplies":
-        return _pick_pet_image(product_id, _pet_image_pool(name, subcategory))
-    elif subcategory and subcategory in SUBCATEGORY_IMAGE_POOL:
+        return _pick_pool_image(product_id, "Pet Supplies", _pet_image_pool(name, subcategory))
+    pool = CATEGORY_IMAGE_POOL.get(category, CATEGORY_IMAGE_POOL.get("Electronics", []))
+    pool_key = category
+    if subcategory and subcategory in SUBCATEGORY_IMAGE_POOL:
         pool = SUBCATEGORY_IMAGE_POOL[subcategory]
-    idx = int(hashlib.sha256(product_id.encode()).hexdigest(), 16) % len(pool)
-    return f"https://images.unsplash.com/{pool[idx]}?w=400&h=300&fit=crop"
+        pool_key = f"{category}::{subcategory}"
+    return _pick_pool_image(product_id, pool_key, pool)
 
 
 def generate_product(product_id: str, category: str, subcategory: str, brand: str, name_suffix: str, price: float) -> dict:
