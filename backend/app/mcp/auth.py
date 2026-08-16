@@ -1,13 +1,18 @@
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 
 import jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models import User
 
-JWT_SECRET = "mcp-secret-key-change-in-production"
+# MCP/helper-auth signing secret. Never hardcode a production secret: use the
+# main app's SECRET_KEY (which itself must be set via env in production) or an
+# explicit MCP_JWT_SECRET override.
+JWT_SECRET = os.environ.get("MCP_JWT_SECRET") or settings.SECRET_KEY
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
 

@@ -25,8 +25,16 @@ class Settings(BaseSettings):
     APP_TITLE: str = "Retail Hyper-Personalisation Engine"
     APP_VERSION: str = "1.0.0"
 
-    # CORS
-    CORS_ORIGINS: list[str] = ["*"]
+    # CORS — tightened by default to local dev origins. The served SPA + Vite
+    # dev proxy are same-origin, so a wide-open `*` default is unnecessary and
+    # invalid-to-combine with allow_credentials. Override via CORS_ORIGINS env
+    # (comma-separated) for any other deployment.
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
 
     # Authentication — SECRET_KEY should come from the environment in production.
     # This dev default is NOT safe for production; set JWT_SECRET/SECRET_KEY env var.

@@ -28,6 +28,11 @@ venv/
 *.sqlite3
 *.pkl.fixbak
 
+# SQLite runtime state (never commit WAL/SHM or live PID files)
+*.db-wal
+*.db-shm
+live_pid.txt
+
 # IDE
 .vscode/
 .idea/

@@ -12,3 +12,10 @@ services:
         value: sqlite+aiosqlite:///./data/personalisation.db
       - key: PYTHON_VERSION
         value: 3.12.0
+      # REQUIRED: set as a secret in the Render dashboard. If missing the
+      # dev-only SECRET_KEY fallback would be used for JWT signing.
+      - key: SECRET_KEY
+        sync: false
+      # Comma-separated allowed CORS origins for your domain.
+      - key: CORS_ORIGINS
+        value: https://retail-hyper.onrender.com
