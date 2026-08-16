@@ -3,7 +3,6 @@ Currency conversion helper with hardcoded rates.
 All prices are stored in USD in the database.
 Conversion happens server-side based on customer's stored currency preference.
 """
-from typing import Optional
 
 # Hardcoded fixed conversion rates (USD -> target)
 CURRENCY_CONFIG: dict[str, dict] = {
@@ -16,7 +15,7 @@ CURRENCY_CONFIG: dict[str, dict] = {
 DEFAULT_CURRENCY = "USD"
 
 
-def convert_price(price_usd: float, target_currency: Optional[str] = None) -> tuple[float, str, str]:
+def convert_price(price_usd: float, target_currency: str | None = None) -> tuple[float, str, str]:
     """
     Convert price from USD to target currency.
     Returns (converted_price, currency_code, symbol).
@@ -32,10 +31,8 @@ def convert_price(price_usd: float, target_currency: Optional[str] = None) -> tu
     converted = price_usd * rate
 
     # Round appropriately
-    if target == "INR":
-        converted = int(round(converted))  # INR has no paise in display
-    elif target == "JPY":
-        converted = int(round(converted))
+    if target in ("INR", "JPY"):
+        converted = round(converted)  # whole numbers (no sub-unit fares)
     else:
         converted = round(converted, 2)
 

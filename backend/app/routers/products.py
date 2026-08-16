@@ -4,14 +4,15 @@ GET /api/products/search?q=...&category=...&customer_id=...
 GET /api/products/{id}?customer_id=...
 """
 import re
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, or_, and_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Product, Customer
+from app.models import Product
 from app.schemas import ProductOut, ProductSearchResult
-from app.currency import convert_price
+from app.serializers import resolve_customer_currency, serialize_product
 
 router = APIRouter(tags=["products"])
 
@@ -117,34 +118,8 @@ async def search_products(
     result = await db.execute(stmt)
     products = result.scalars().all()
 
-    # Determine customer currency for conversion
-    customer_currency = "USD"
-    if customer_id:
-        cust_result = await db.execute(
-            select(Customer.currency).where(Customer.customer_id == customer_id)
-        )
-        cur = cust_result.scalar_one_or_none()
-        if cur:
-            customer_currency = cur
-
-    out = []
-    for p in products:
-        converted_price, cur, sym = convert_price(p.price, customer_currency)
-        out.append(ProductSearchResult(
-            product_id=p.product_id,
-            name=p.name,
-            category=p.category or "",
-            subcategory=p.subcategory or "",
-            brand=p.brand or "",
-            price=converted_price,
-            currency=cur,
-            symbol=sym,
-            image_url=p.image_url or "",
-            rating=p.rating,
-            discount_percent=p.discount_percent,
-            original_price=p.original_price,
-        ))
-    return out
+    customer_currency = await resolve_customer_currency(db, customer_id)
+    return [serialize_product(p, customer_currency) for p in products]
 
 
 @router.get("/products/{product_id}", response_model=ProductOut)
@@ -161,29 +136,5 @@ async def get_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # Determine customer currency for conversion
-    customer_currency = "USD"
-    if customer_id:
-        cust_result = await db.execute(
-            select(Customer.currency).where(Customer.customer_id == customer_id)
-        )
-        cur = cust_result.scalar_one_or_none()
-        if cur:
-            customer_currency = cur
-
-    converted_price, cur, sym = convert_price(product.price, customer_currency)
-
-    return ProductOut(
-        product_id=product.product_id,
-        name=product.name,
-        category=product.category or "",
-        subcategory=product.subcategory or "",
-        brand=product.brand or "",
-        price=converted_price,
-        currency=cur,
-        symbol=sym,
-        image_url=product.image_url or "",
-        rating=product.rating,
-        discount_percent=product.discount_percent,
-        original_price=product.original_price,
-    )
+    customer_currency = await resolve_customer_currency(db, customer_id)
+    return serialize_product(product, customer_currency)

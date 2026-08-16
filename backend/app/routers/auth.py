@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Customer
-from app.schemas import LoginRequest, AuthResponse
-from app.security import hash_password, verify_password, create_access_token
+from app.schemas import AuthResponse, LoginRequest
+from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

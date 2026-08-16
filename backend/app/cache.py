@@ -2,9 +2,7 @@
 Redis caching layer for recommendations and product queries.
 Gracefully degrades when Redis is not configured.
 """
-import json
 import logging
-from typing import Optional
 
 from app.config import settings
 
@@ -31,7 +29,7 @@ async def get_redis():
         return None
 
 
-async def cache_get(key: str) -> Optional[str]:
+async def cache_get(key: str) -> str | None:
     r = await get_redis()
     if r is None:
         return None

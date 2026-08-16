@@ -4,9 +4,18 @@ Uses String(36) for UUID fields for portability across database backends.
 Datetimes are stored as timezone-naive UTC for compatibility with both SQLite and Postgres.
 """
 import uuid
+
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, Float, Integer, ForeignKey, JSON, Text,
-    UniqueConstraint, Index,
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.orm import relationship
 

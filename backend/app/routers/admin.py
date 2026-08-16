@@ -5,21 +5,20 @@ POST /api/admin/right-to-forget/{customer_id} --- GDPR right to forget
 """
 import asyncio
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
 
 import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db, async_session_factory
+from app.cache import cache_delete
+from app.database import async_session_factory, get_db
 from app.models import Customer, Event, Product, Recommendation
 from app.offers import OfferEngine
-from app.schemas import TrainOut, AdminActionOut, AssignOffersOut, SystemStatsOut, SegmentCountOut
 from app.privacy import ConsentService
-from app.config import settings
+from app.schemas import AdminActionOut, AssignOffersOut, SegmentCountOut, SystemStatsOut, TrainOut
+from app.security import get_current_customer
 from app.utils import utcnow
-from app.cache import cache_delete
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +27,8 @@ router = APIRouter(tags=["admin"])
 # Global reference to the recommender engine
 recommender_engine = None
 
-
-from app.security import get_current_customer
+# Strong references to in-flight background tasks so they aren't GC'd.
+_background_tasks: set = set()
 
 
 def set_recommender_engine(engine):
@@ -63,7 +62,7 @@ async def trigger_training(
     if recommender_engine is None:
         raise HTTPException(status_code=503, detail="Recommender engine not available")
 
-    asyncio.create_task(run_training())
+    _background_tasks.add(asyncio.create_task(run_training()))
     return TrainOut()
 
 
@@ -92,7 +91,7 @@ async def get_system_stats(
     total_customers = customers_result.scalar() or 0
 
     consent_result = await db.execute(
-        select(func.count(Customer.customer_id)).where(Customer.consent_given == True)
+        select(func.count(Customer.customer_id)).where(Customer.consent_given)
     )
     consent_count = consent_result.scalar() or 0
     consent_rate = round(consent_count / total_customers * 100, 1) if total_customers > 0 else 0.0
@@ -103,7 +102,7 @@ async def get_system_stats(
     products_result = await db.execute(select(func.count(Product.product_id)))
     total_products = products_result.scalar() or 0
 
-    from app.models import Offer, CustomerOffer, CustomerSegment
+    from app.models import CustomerOffer, CustomerSegment, Offer
 
     offers_result = await db.execute(select(func.count(Offer.offer_id)))
     total_offers = offers_result.scalar() or 0
@@ -112,7 +111,7 @@ async def get_system_stats(
     now = utcnow()
     active_result = await db.execute(
         select(func.count(Offer.offer_id)).where(
-            Offer.is_active == True,
+            Offer.is_active,
             Offer.valid_from <= now,
             Offer.valid_until >= now,
         )
@@ -235,7 +234,7 @@ async def _store_recommendations(db) -> None:
 
     # Get all customers with consent
     result = await db.execute(
-        select(Customer).where(Customer.consent_given == True)
+        select(Customer).where(Customer.consent_given)
     )
     customers = result.scalars().all()
 

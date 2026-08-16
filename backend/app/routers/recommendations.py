@@ -2,23 +2,27 @@
 GET /api/customers/{customer_id}/recommendations
 """
 import json
-import pandas as pd
 from datetime import timedelta
 
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.cache import cache_get, cache_set
+from app.currency import convert_price
 from app.database import get_db
-from app.models import Customer, Event, Product, Recommendation, CustomerSegment
-from app.schemas import RecommendationOut
+from app.models import (
+    Customer,
+    CustomerCategoryPreference,
+    Event,
+    Product,
+    Recommendation,
+)
 from app.privacy import ConsentService
-from app.config import settings
+from app.schemas import RecommendationOut
 from app.security import require_owner
 from app.utils import utcnow
-from app.currency import convert_price
-from app.models import CustomerCategoryPreference
-from app.cache import cache_get, cache_set
 
 router = APIRouter(tags=["recommendations"])
 

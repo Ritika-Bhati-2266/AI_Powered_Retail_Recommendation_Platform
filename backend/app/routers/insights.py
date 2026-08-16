@@ -4,14 +4,14 @@ GET /api/customers/{customer_id}/recently-viewed
 GET /api/customers/{customer_id}/continue-shopping
 """
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func, and_, not_, exists
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Customer, Event, Product
 from app.schemas import ProductSearchResult
-from app.currency import convert_price
 from app.security import require_owner
+from app.serializers import serialize_product
 
 router = APIRouter(tags=["insights"])
 
@@ -62,24 +62,7 @@ async def get_recently_viewed(
     result = await db.execute(stmt)
     products = result.scalars().all()
 
-    out = []
-    for p in products:
-        converted_price, cur, sym = convert_price(p.price, customer_currency)
-        out.append(ProductSearchResult(
-            product_id=p.product_id,
-            name=p.name,
-            category=p.category or "",
-            subcategory=p.subcategory or "",
-            brand=p.brand or "",
-            price=converted_price,
-            currency=cur,
-            symbol=sym,
-            image_url=p.image_url or "",
-            rating=p.rating,
-            discount_percent=p.discount_percent,
-            original_price=p.original_price,
-        ))
-    return out
+    return [serialize_product(p, customer_currency) for p in products]
 
 
 @router.get(
@@ -141,21 +124,4 @@ async def get_continue_shopping(
     result = await db.execute(stmt)
     products = result.scalars().all()
 
-    out = []
-    for p in products:
-        converted_price, cur, sym = convert_price(p.price, customer_currency)
-        out.append(ProductSearchResult(
-            product_id=p.product_id,
-            name=p.name,
-            category=p.category or "",
-            subcategory=p.subcategory or "",
-            brand=p.brand or "",
-            price=converted_price,
-            currency=cur,
-            symbol=sym,
-            image_url=p.image_url or "",
-            rating=p.rating,
-            discount_percent=p.discount_percent,
-            original_price=p.original_price,
-        ))
-    return out
+    return [serialize_product(p, customer_currency) for p in products]

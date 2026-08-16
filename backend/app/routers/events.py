@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Event, Customer, Product
+from app.models import Customer, Event, Product
 from app.schemas import EventCreate, EventOut
 from app.security import get_current_customer
 from app.utils import utcnow

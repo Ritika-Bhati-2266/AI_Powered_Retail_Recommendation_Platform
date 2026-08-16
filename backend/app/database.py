@@ -2,10 +2,12 @@
 Async SQLAlchemy engine, session factory, and FastAPI dependency.
 Auto-detects SQLite vs Postgres from the DATABASE_URL.
 """
+from collections.abc import AsyncGenerator
+
+from sqlalchemy import inspect
+from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import inspect, text as sa_text
-from typing import AsyncGenerator
 
 from app.config import settings
 

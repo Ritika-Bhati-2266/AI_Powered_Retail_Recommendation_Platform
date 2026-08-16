@@ -10,8 +10,7 @@ Note: the legacy `X-User-Email` header is no longer trusted for any protected
 route; consumers must present a valid `Authorization: Bearer <token>`.
 """
 import logging
-
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
@@ -52,7 +51,7 @@ def verify_password(plain: str, hashed: str | None) -> bool:
 
 def create_access_token(customer_id: str, role: str) -> str:
     """Create a signed JWT access token for a customer."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": customer_id,
         "role": role,

@@ -1,0 +1,17 @@
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+exclude = ["venv"]
+
+[tool.ruff.lint]
+# Core correctness/style groups (extended beyond ruff's essential defaults).
+select = ["E", "F", "W", "I", "UP", "B", "PERF", "RUF"]
+ignore = [
+  # FastAPI idiom: dependency injection via Depends() in argument defaults.
+  "B008",
+  # Intentional decorative box-drawing / unicode separators in docstrings.
+  "RUF002",
+  "RUF003",
+  # Line length is formatting; enforced by `ruff format`, not this gate.
+  "E501",
+]

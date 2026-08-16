@@ -1,17 +1,20 @@
 """
 OfferEngine: segment assignment, offer management, and personalised offer delivery.
 """
-import uuid
 import logging
+import uuid
 from datetime import timedelta
-from decimal import Decimal
 
-from sqlalchemy import select, delete, and_
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
-    CustomerSegment, Offer, CustomerOffer, Event, Product, Customer,
     CustomerCategoryPreference,
+    CustomerOffer,
+    CustomerSegment,
+    Event,
+    Offer,
+    Product,
 )
 from app.utils import utcnow
 
@@ -209,7 +212,6 @@ class OfferEngine:
         """Compute behavioural metrics for a customer (used for segment evaluation)."""
         now = utcnow()
         thirty_days_ago = now - timedelta(days=30)
-        ninety_days_ago = now - timedelta(days=90)
 
         # Get all events for this customer
         result = await self.db.execute(
@@ -249,10 +251,7 @@ class OfferEngine:
 
         # Lifetime value from purchases
         lifetime_value = 0.0
-        purchase_product_ids = []
-        for ev in purchase_events:
-            if ev.product_id:
-                purchase_product_ids.append(ev.product_id)
+        purchase_product_ids = [ev.product_id for ev in purchase_events if ev.product_id]
 
         if purchase_product_ids:
             prod_result = await self.db.execute(
@@ -354,7 +353,7 @@ class OfferEngine:
         # Get all active offers
         result = await self.db.execute(
             select(Offer).where(
-                Offer.is_active == True,
+                Offer.is_active,
                 Offer.valid_from <= now,
                 Offer.valid_until >= now,
             )
@@ -390,7 +389,7 @@ class OfferEngine:
             .join(CustomerOffer, CustomerOffer.offer_id == Offer.offer_id)
             .where(
                 CustomerOffer.customer_id == customer_id,
-                Offer.is_active == True,
+                Offer.is_active,
                 Offer.valid_from <= now,
                 Offer.valid_until >= now,
             )

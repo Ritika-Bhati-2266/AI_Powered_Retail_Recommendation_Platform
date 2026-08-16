@@ -6,18 +6,16 @@ for content-based fallback, with interpretable reason codes.
 Privacy-safe: all features are behavioural only — no demographics,
 no age, no gender, no location. Consent-gated at the API layer.
 """
-import os
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+import os
 
+import joblib
 import numpy as np
 import pandas as pd
-from scipy.sparse import csr_matrix, coo_matrix
+from scipy.sparse import coo_matrix, csr_matrix
 from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import normalize
-import joblib
 
 logger = logging.getLogger(__name__)
 
@@ -27,16 +25,16 @@ class RecommendationEngine:
 
     def __init__(self, settings):
         self.settings = settings
-        self.svd: Optional[TruncatedSVD] = None
+        self.svd: TruncatedSVD | None = None
         self._user_ids: list[str] = []
         self._item_ids: list[str] = []
         self._user_index: dict[str, int] = {}
         self._item_index: dict[str, int] = {}
         self._product_details: dict[str, dict] = {}
-        self._interaction_matrix: Optional[csr_matrix] = None
-        self._user_factors: Optional[np.ndarray] = None
-        self._item_factors: Optional[np.ndarray] = None
-        self._item_content_vectors: Optional[np.ndarray] = None
+        self._interaction_matrix: csr_matrix | None = None
+        self._user_factors: np.ndarray | None = None
+        self._item_factors: np.ndarray | None = None
+        self._item_content_vectors: np.ndarray | None = None
         self._is_trained: bool = False
 
     # ── Feature Building ───────────────────────────────────────────────
@@ -178,8 +176,8 @@ class RecommendationEngine:
         self,
         customer_id: str,
         n: int = 10,
-        events_df: Optional[pd.DataFrame] = None,
-        products_df: Optional[pd.DataFrame] = None,
+        events_df: pd.DataFrame | None = None,
+        products_df: pd.DataFrame | None = None,
     ) -> list[dict]:
         """Generate top-N hybrid recommendations."""
         if not self._is_trained or self.svd is None:
@@ -266,7 +264,7 @@ class RecommendationEngine:
         return recommendations
 
     def _fallback_recommendations(
-        self, n: int = 10, events_df: Optional[pd.DataFrame] = None
+        self, n: int = 10, events_df: pd.DataFrame | None = None
     ) -> list[dict]:
         """
         Return trending/popular items when the model is unavailable or the

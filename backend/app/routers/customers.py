@@ -5,21 +5,39 @@ GET  /api/customers/{customer_id}
 POST /api/customers
 """
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, or_
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
 
-from app.database import get_db
-from app.models import (Customer, Event, Product, CustomerSegment, CustomerOffer, Offer,
-                        CustomerCategoryPreference, Order, OrderItem, Recommendation, ConsentLog)
-from app.offers import OfferEngine
-from app.schemas import CustomerOut, CustomerCreate, CustomerUpdate, CustomerSearchResult, CustomerMetrics, SegmentOut
-from app.utils import utcnow, get_price_tier
-from app.currency import convert_price, get_available_currencies
-from app.security import hash_password, require_owner, get_current_customer, require_admin
-from app.privacy import ConsentService
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.cache import cache_delete
+from app.currency import get_available_currencies
+from app.database import get_db
+from app.models import (
+    ConsentLog,
+    Customer,
+    CustomerCategoryPreference,
+    CustomerOffer,
+    CustomerSegment,
+    Event,
+    Offer,
+    Order,
+    OrderItem,
+    Product,
+    Recommendation,
+)
+from app.privacy import ConsentService
+from app.schemas import (
+    CustomerCreate,
+    CustomerMetrics,
+    CustomerOut,
+    CustomerSearchResult,
+    CustomerUpdate,
+    SegmentOut,
+)
+from app.security import get_current_customer, hash_password, require_admin, require_owner
+from app.utils import get_price_tier, utcnow
 
 router = APIRouter(tags=["customers"])
 
@@ -76,7 +94,7 @@ async def create_customer(
         result = await db.execute(
             select(Offer).where(
                 Offer.segment == "new_user",
-                Offer.is_active == True,
+                Offer.is_active,
                 Offer.valid_from <= now,
                 Offer.valid_until >= now,
             )
@@ -114,7 +132,7 @@ async def create_customer(
         raise HTTPException(
             status_code=409,
             detail="An account with this email address already exists.",
-        )
+        ) from None
 
     # Return full profile
     result = await db.execute(
@@ -493,7 +511,7 @@ async def _compute_customer_metrics(customer_id: str, db: AsyncSession) -> Custo
     for e in events:
         if e.session_id:
             sessions.setdefault(e.session_id, []).append(e.event_timestamp)
-    for s_id, timestamps in sessions.items():
+    for timestamps in sessions.values():
         if len(timestamps) >= 2:
             valid_ts = [t for t in timestamps if t is not None]
             if len(valid_ts) >= 2:
@@ -507,7 +525,6 @@ async def _compute_customer_metrics(customer_id: str, db: AsyncSession) -> Custo
     days_since_last = (now - last_event_time).days if last_event_time else 0
 
     # Lifetime value (true total spent = sum of quantity weighted order line totals)
-    from sqlalchemy import select as _sel, func as _func, join as _join
     lv_result = await db.execute(
         select(OrderItem.quantity, OrderItem.unit_price)
         .select_from(OrderItem)

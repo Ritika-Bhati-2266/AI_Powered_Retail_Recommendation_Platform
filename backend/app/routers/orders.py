@@ -5,16 +5,17 @@ GET  /api/customers/{customer_id}/orders   -- order history (newest first)
 GET  /api/customers/{customer_id}/orders/{order_id} -- order detail
 """
 import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
-from app.models import Customer, Product, Order, OrderItem, Event
-from app.schemas import OrderCreate, OrderOut, OrderItemOut
 from app.currency import convert_price
-from app.utils import utcnow
+from app.database import get_db
+from app.models import Customer, Event, Order, OrderItem, Product
+from app.schemas import OrderCreate, OrderItemOut, OrderOut
 from app.security import require_owner
+from app.utils import utcnow
 
 router = APIRouter(tags=["orders"])
 
@@ -92,7 +93,7 @@ async def place_order(
         if not product:
             raise HTTPException(status_code=404, detail=f"Product not found: {line.product_id}")
 
-        unit_price, cur, _ = convert_price(product.price, currency)
+        unit_price, _, _ = convert_price(product.price, currency)
         subtotal = round(unit_price * line.quantity, 2)
         total += subtotal
 

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.mcp.auth import create_access_token, oauth_callback, verify_access_token
+from app.mcp.auth import create_access_token, oauth_callback
 
 logger = logging.getLogger(__name__)
 

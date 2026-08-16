@@ -2,10 +2,11 @@
 ConsentService: handles consent checking, logging, and GDPR/DPDP right-to-forget.
 """
 import uuid
-from sqlalchemy import delete, update, select
+
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Customer, ConsentLog, Event, Recommendation, CustomerSegment, CustomerOffer
+from app.models import ConsentLog, Customer, CustomerOffer, CustomerSegment, Event, Recommendation
 from app.utils import utcnow
 
 

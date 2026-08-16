@@ -3,21 +3,31 @@ FastAPI application entry point for the Retail Hyper-Personalisation Engine.
 Initialises database, seeds data, loads ML model, and registers all routers.
 Serves production frontend build from frontend/dist when available.
 """
-import os
 import logging
-from pathlib import Path
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi import HTTPException
 
 from app.config import settings
-from app.database import create_tables, engine, async_session_factory
-from app.models import Event, Customer
-from app.seed_data import seed_database, ensure_demo_passwords
+from app.database import async_session_factory, create_tables, engine
+from app.mcp import router as mcp_router
 from app.offers import OfferEngine
+from app.routers import (
+    admin,
+    auth,
+    customers,
+    events,
+    insights,
+    offers,
+    orders,
+    products,
+    recommendations,
+)
+from app.seed_data import ensure_demo_passwords, seed_database
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,10 +75,8 @@ async def lifespan(app: FastAPI):
         logger.info("No pre-trained model found. Use POST /api/admin/train to train one.")
 
     # Set global engine references in routers
-    from app.routers import recommendations as rec_router
-    from app.routers import admin as admin_router
-    rec_router.set_recommender_engine(recommender_engine)
-    admin_router.set_recommender_engine(recommender_engine)
+    recommendations.set_recommender_engine(recommender_engine)
+    admin.set_recommender_engine(recommender_engine)
 
     logger.info("Application startup complete.")
     yield
@@ -100,28 +108,15 @@ app.add_middleware(
 
 # ── Import and register routers ──────────────────────────────────────────────
 
-from app.routers import events, customers, recommendations, offers, admin, products as products_router
-
 app.include_router(events.router, prefix="/api")
 app.include_router(customers.router, prefix="/api")
 app.include_router(recommendations.router, prefix="/api")
 app.include_router(offers.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
-app.include_router(products_router.router, prefix="/api")
-
-from app.routers import orders as orders_router
-app.include_router(orders_router.router, prefix="/api")
-
-# Auth
-from app.routers import auth as auth_router
-app.include_router(auth_router.router, prefix="/api")
-
-# Customer insights
-from app.routers import insights as insights_router
-app.include_router(insights_router.router, prefix="/api")
-
-# MCP OAuth
-from app.mcp import router as mcp_router
+app.include_router(products.router, prefix="/api")
+app.include_router(orders.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
+app.include_router(insights.router, prefix="/api")
 app.include_router(mcp_router.router)
 
 

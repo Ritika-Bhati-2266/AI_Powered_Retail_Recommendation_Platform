@@ -2,19 +2,19 @@
 Seed data generator for the retail hyper-personalisation engine demo.
 Generates realistic synthetic customers, products, events, and initial segments.
 """
-import uuid
-import random
 import hashlib
 import logging
-from datetime import datetime, timezone, timedelta
+import random
+import uuid
+from datetime import datetime, timedelta
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Customer, Product, Event, CustomerSegment, CustomerOffer
 from app.config import settings
-from app.utils import utcnow
+from app.models import Customer, CustomerSegment, Event, Product
 from app.security import hash_password
+from app.utils import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -1739,8 +1739,6 @@ def generate_event_time(base_date: datetime, day_offset: int) -> datetime:
 
     # Weekend vs weekday: slightly more activity on weekends
     event_date = base_date + timedelta(days=day_offset)
-    is_weekend = event_date.weekday() >= 5
-    multiplier = 1.3 if is_weekend else 1.0
 
     hour = random.choices(range(24), weights=hour_weights, k=1)[0]
     minute = random.randint(0, 59)
@@ -1901,7 +1899,7 @@ async def seed_database(db: AsyncSession) -> None:
         purchased_products = []
         viewed_products = set()
 
-        for ev_idx in range(num_events):
+        for _ev_idx in range(num_events):
             # Determine event type based on weights
             event_type = random.choices(
                 list(EVENT_WEIGHTS.keys()),
@@ -2014,7 +2012,6 @@ async def ensure_demo_passwords(db: AsyncSession) -> None:
     them the shared demo password. Real accounts created via signup always have
     their own password and are unaffected.
     """
-    from sqlalchemy import update
     demo_hash = hash_password(settings.DEMO_PASSWORD, rounds=10)
     result = await db.execute(
         select(Customer).where(Customer.password_hash.is_(None))

@@ -2,18 +2,17 @@
 Pydantic v2 models for all API request/response shapes.
 """
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field
 
 # ── Event ────────────────────────────────────────────────────────────────────
 
 class EventCreate(BaseModel):
     customer_id: str
     event_type: str
-    product_id: Optional[str] = None
-    session_id: Optional[str] = None
-    metadata: Optional[dict] = None
+    product_id: str | None = None
+    session_id: str | None = None
+    metadata: dict | None = None
 
 
 class EventOut(BaseModel):
@@ -80,8 +79,8 @@ class AuthResponse(BaseModel):
 
 class CustomerUpdate(BaseModel):
     """Partial update for customer settings (e.g. currency, consent)."""
-    currency: Optional[str] = None
-    consent_given: Optional[bool] = None
+    currency: str | None = None
+    consent_given: bool | None = None
 
 
 class CustomerSearchResult(BaseModel):
@@ -97,15 +96,15 @@ class RecommendationOut(BaseModel):
     product_id: str
     name: str
     category: str
-    subcategory: Optional[str] = None
-    brand: Optional[str] = None
+    subcategory: str | None = None
+    brand: str | None = None
     price: float
     currency: str = "USD"
     symbol: str = "$"
-    image_url: Optional[str] = None
-    rating: Optional[float] = None
-    discount_percent: Optional[float] = None
-    original_price: Optional[float] = None
+    image_url: str | None = None
+    rating: float | None = None
+    discount_percent: float | None = None
+    original_price: float | None = None
     score: float
     reason_code: str
     reason_text: str
@@ -116,11 +115,11 @@ class RecommendationOut(BaseModel):
 class OfferOut(BaseModel):
     offer_id: str
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     discount_type: str
     discount_value: float
-    discount_percentage: Optional[float] = None
-    reason: Optional[str] = None
+    discount_percentage: float | None = None
+    reason: str | None = None
     valid_until: datetime
     currency: str = "USD"
     symbol: str = "$"
@@ -141,9 +140,9 @@ class ProductSearchResult(BaseModel):
     currency: str = "USD"
     symbol: str = "$"
     image_url: str = ""
-    rating: Optional[float] = None
-    discount_percent: Optional[float] = None
-    original_price: Optional[float] = None
+    rating: float | None = None
+    discount_percent: float | None = None
+    original_price: float | None = None
 
 
 class ProductOut(BaseModel):
@@ -156,9 +155,9 @@ class ProductOut(BaseModel):
     currency: str = "USD"
     symbol: str = "$"
     image_url: str = ""
-    rating: Optional[float] = None
-    discount_percent: Optional[float] = None
-    original_price: Optional[float] = None
+    rating: float | None = None
+    discount_percent: float | None = None
+    original_price: float | None = None
     class Config:
         from_attributes = True
 
@@ -172,13 +171,13 @@ class OrderItemCreate(BaseModel):
 
 class OrderCreate(BaseModel):
     items: list[OrderItemCreate] = Field(..., min_length=1)
-    shipping_name: Optional[str] = None
-    shipping_address: Optional[str] = None
+    shipping_name: str | None = None
+    shipping_address: str | None = None
 
 
 class OrderItemOut(BaseModel):
     order_item_id: str
-    product_id: Optional[str] = None
+    product_id: str | None = None
     product_name_snapshot: str
     quantity: int
     unit_price: float
@@ -191,8 +190,8 @@ class OrderOut(BaseModel):
     total_amount: float
     currency: str = "USD"
     status: str = "placed"
-    shipping_name: Optional[str] = None
-    shipping_address: Optional[str] = None
+    shipping_name: str | None = None
+    shipping_address: str | None = None
     created_at: datetime
     items: list[OrderItemOut] = []
 
@@ -201,7 +200,7 @@ class OrderOut(BaseModel):
 
 class AdminActionOut(BaseModel):
     status: str
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class TrainOut(BaseModel):

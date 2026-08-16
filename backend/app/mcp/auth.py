@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from sqlalchemy import select
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def create_access_token(user_id: int) -> str:
     payload = {
         "user_id": user_id,
-        "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS),
+        "exp": datetime.now(UTC) + timedelta(hours=JWT_EXPIRY_HOURS),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 

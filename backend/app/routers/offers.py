@@ -6,12 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.currency import convert_price
 from app.database import get_db
 from app.models import Customer
-from app.schemas import OfferOut
 from app.offers import OfferEngine
 from app.privacy import ConsentService
-from app.currency import convert_price
+from app.schemas import OfferOut
 from app.security import require_owner
 
 router = APIRouter(tags=["offers"])
