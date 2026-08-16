@@ -5,9 +5,14 @@ import { apiClient, ApiError, BackendUnreachableError } from '../api/client';
 import PrivacyModal from './PrivacyModal';
 import type { CustomerFull } from '../types';
 
+// Category chips shown at signup MUST be real product-catalog categories so the
+// cold-start preference actually matches products (previously short names like
+// "Sports"/"Beauty" never matched catalog categories like "Sports & Outdoors").
 const CATEGORIES = [
   'Electronics', 'Clothing', 'Home & Kitchen', 'Books',
-  'Sports', 'Beauty', 'Toys', 'Grocery',
+  'Sports & Outdoors', 'Beauty & Personal Care', 'Toys & Games', 'Grocery & Gourmet',
+  'Automotive', 'Baby & Kids', 'Health & Wellness', 'Music & Media',
+  'Office & Stationery', 'Pet Supplies',
 ];
 
 interface LoginScreenProps {

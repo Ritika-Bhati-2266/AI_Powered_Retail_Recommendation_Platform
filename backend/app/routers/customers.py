@@ -89,11 +89,17 @@ async def create_customer(
                 assigned_at=now,
             ))
 
-        # Store cold-start category preferences if provided
-        valid_categories = [
-            "Electronics", "Clothing", "Home & Kitchen", "Books",
-            "Sports", "Beauty", "Toys", "Grocery",
-        ]
+        # Store cold-start category preferences if provided. Only categories that
+        # actually exist in the product catalog are meaningful — derive the allowed
+        # set from the DB so signup chips always match the catalog (previously a
+        # hardcoded list like "Sports"/"Beauty" never matched real categories such
+        # as "Sports & Outdoors", silently killing cold-start recommendations).
+        result = await db.execute(
+            select(Product.category)
+            .distinct()
+            .where(Product.category.isnot(None))
+        )
+        valid_categories = {row[0] for row in result.all()}
         for cat in payload.category_preferences:
             if cat in valid_categories:
                 db.add(CustomerCategoryPreference(

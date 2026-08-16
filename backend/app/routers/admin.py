@@ -151,7 +151,12 @@ async def get_system_stats(
 
 
 async def run_training() -> None:
-    """Background task: fetch data and train the model."""
+    """Background task: fetch data and train the model.
+
+    The expensive parts (SVD fit, content-feature building, per-customer
+    scoring) run via asyncio.to_thread so they NEVER block the event loop —
+    the API stays responsive to other requests while the model retrains.
+    """
     async with async_session_factory() as db:
         try:
             logger.info("Starting model training...")
@@ -197,7 +202,7 @@ async def run_training() -> None:
             ]
             products_df = pd.DataFrame(products_data)
 
-            # Ensure string types
+            # Ensure string types (cheap, stays on the loop)
             for col in ["customer_id", "product_id", "event_type"]:
                 if col in events_df.columns:
                     events_df[col] = events_df[col].astype(str)
@@ -206,10 +211,10 @@ async def run_training() -> None:
                 if col in products_df.columns:
                     products_df[col] = products_df[col].astype(str)
 
-            # Train model
-            recommender_engine.train(events_df, products_df)
+            # Heavy CPU-bound model training, off the event loop.
+            await asyncio.to_thread(recommender_engine.train, events_df, products_df)
 
-            # Store recommendations in DB
+            # Store recommendations (scoring threaded, DB writes async)
             await _store_recommendations(db)
 
             await db.commit()
@@ -219,8 +224,13 @@ async def run_training() -> None:
             logger.error(f"Training failed: {e}", exc_info=True)
 
 
-async def _store_recommendations(db: AsyncSession) -> None:
-    """Generate and persist recommendations for all consenting customers."""
+async def _store_recommendations(db) -> None:
+    """Generate and persist recommendations for all consenting customers.
+
+    All per-customer scoring (SVD inference + reason-code lookups) runs in a
+    worker thread via asyncio.to_thread so a large customer base can't stall
+    the API; only the DB deletes/inserts happen here (async).
+    """
     from sqlalchemy import delete
 
     # Get all customers with consent
@@ -234,90 +244,94 @@ async def _store_recommendations(db: AsyncSession) -> None:
         return
 
     now = utcnow()
-    stored_count = 0
 
-    for customer in customers:
-        try:
-            # Get recommendations (the engine handles filtering internally)
-            recs = recommender_engine.recommend(
-                customer_id=customer.customer_id,
-                n=10,
-            )
+    # Pre-fetch everything the scoring thread needs (async, non-blocking).
+    products_result = await db.execute(select(Product))
+    all_products = products_result.scalars().all()
+    products_df = pd.DataFrame([
+        {"product_id": p.product_id, "category": p.category}
+        for p in all_products
+    ])
 
-            if not recs:
-                continue
+    events_result = await db.execute(select(Event))
+    all_events = events_result.scalars().all()
+    events_data = [
+        {
+            "customer_id": e.customer_id,
+            "product_id": e.product_id,
+            "event_type": e.event_type,
+        }
+        for e in all_events
+    ]
+    events_df = pd.DataFrame(events_data) if events_data else pd.DataFrame()
 
-            # Delete existing recommendations for this customer before inserting fresh ones
-            await db.execute(
-                delete(Recommendation).where(
-                    Recommendation.customer_id == customer.customer_id
-                )
-            )
-
-            # Deduplicate by product_id, keeping the highest-scored entry
-            seen = {}
-            for rec in recs:
-                pid = rec["product_id"]
-                if pid not in seen or rec["score"] > seen[pid]["score"]:
-                    seen[pid] = rec
-            recs = sorted(seen.values(), key=lambda r: r["score"], reverse=True)
-
-            # Fetch product data for rich reason codes
-            prod_result = await db.execute(select(Product))
-            all_products = prod_result.scalars().all()
-            products_df = pd.DataFrame([
-                {"product_id": p.product_id, "category": p.category}
-                for p in all_products
-            ])
-
-            # Fetch customer events for reason codes
-            events_result = await db.execute(
-                select(Event).where(Event.customer_id == customer.customer_id)
-            )
-            customer_events = events_result.scalars().all()
-
-            for rec in recs:
-                events_list = [
-                    {
-                        "customer_id": e.customer_id,
-                        "product_id": e.product_id,
-                        "event_type": e.event_type,
-                    }
-                    for e in customer_events
-                ]
-                interactions_df = pd.DataFrame(events_list) if events_list else pd.DataFrame()
-
-                reason_code = rec["reason_code"]
-                reason_text = rec["reason_text"]
-
-                if not interactions_df.empty and not products_df.empty:
-                    try:
-                        rc, rt = recommender_engine.get_reason_code(
-                            customer.customer_id,
-                            rec["product_id"],
-                            interactions_df,
-                            products_df,
-                        )
-                        reason_code = rc
-                        reason_text = rt
-                    except Exception:
-                        pass
-
-                recommendation = Recommendation(
+    def _compute_all() -> dict:
+        """Score + explain every consenting customer (CPU-bound, off-loop)."""
+        computed = {}
+        for customer in customers:
+            try:
+                # Get recommendations (the engine handles filtering internally)
+                recs = recommender_engine.recommend(
                     customer_id=customer.customer_id,
-                    product_id=rec["product_id"],
-                    score=rec["score"],
-                    reason_code=reason_code,
-                    reason_text=reason_text,
-                    generated_at=now,
+                    n=10,
                 )
-                db.add(recommendation)
 
-            stored_count += 1
+                if not recs:
+                    continue
 
-        except Exception as e:
-            logger.warning(f"Failed to generate recommendations for {customer.customer_id}: {e}")
-            continue
+                # Deduplicate by product_id, keeping the highest-scored entry
+                seen = {}
+                for rec in recs:
+                    pid = rec["product_id"]
+                    if pid not in seen or rec["score"] > seen[pid]["score"]:
+                        seen[pid] = rec
+                recs = sorted(seen.values(), key=lambda r: r["score"], reverse=True)
+
+                # Rich, interpretable reason codes from the customer's own events
+                if not events_df.empty and not products_df.empty:
+                    customer_events = events_df[
+                        events_df["customer_id"] == customer.customer_id
+                    ]
+                    for rec in recs:
+                        try:
+                            rc, rt = recommender_engine.get_reason_code(
+                                customer.customer_id,
+                                rec["product_id"],
+                                customer_events,
+                                products_df,
+                            )
+                            rec["reason_code"] = rc
+                            rec["reason_text"] = rt
+                        except Exception:
+                            pass
+
+                computed[customer.customer_id] = recs
+            except Exception as e:
+                logger.warning(f"Failed to generate recommendations for {customer.customer_id}: {e}")
+                continue
+        return computed
+
+    computed = await asyncio.to_thread(_compute_all)
+
+    stored_count = 0
+    for customer_id, recs in computed.items():
+        # Delete existing recommendations before inserting fresh ones
+        await db.execute(
+            delete(Recommendation).where(
+                Recommendation.customer_id == customer_id
+            )
+        )
+        for rec in recs:
+            recommendation = Recommendation(
+                customer_id=customer_id,
+                product_id=rec["product_id"],
+                score=rec["score"],
+                reason_code=rec.get("reason_code") or "top_pick",
+                reason_text=rec.get("reason_text") or "Recommended for you",
+                generated_at=now,
+            )
+            db.add(recommendation)
+        stored_count += 1
 
     await db.flush()
     # Invalidate recommendation cache for all customers
