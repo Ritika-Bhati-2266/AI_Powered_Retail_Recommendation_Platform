@@ -33,6 +33,11 @@ venv/
 *.db-shm
 live_pid.txt
 
+# Local live-test scripts / reports (run against the running backend, kept out
+# of the repo)
+backend/_final_sections_*.py
+backend/final_sections_*_report.json
+
 # IDE
 .vscode/
 .idea/
