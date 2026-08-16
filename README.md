@@ -83,16 +83,42 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 
 ### Local Development
 
-```bash
-# Backend
+#### Backend (Windows — use the helper scripts, recommended)
+
+Do **not** start uvicorn manually in extra terminals — that is what causes duplicated servers and stale processes holding the SQLite file. Use the scripts in `backend/scripts/` instead:
+
+```powershell
+# First run only: create the virtualenv + install dependencies
 cd backend
 python -m venv venv
-.\venv\Scripts\activate    # Windows
-source venv/bin/activate    # macOS / Linux
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+.\venv\Scripts\pip install -r requirements.txt
 
-# Frontend (in a separate terminal)
+# Start the backend (PowerShell)
+.\scripts\start_backend.ps1             # default port 8000
+.\scripts\start_backend.ps1 -Port 8000  # explicit port
+.\scripts\start_backend.ps1 -NoLog      # skip writing logs to backend/logs/
+```
+
+`start_backend.ps1` runs three steps (it also shows them as `[1/3]`, `[2/3]`, `[3/3]`):
+1. **Stops any existing backend** via `stop_backend.ps1`, so no duplicate server can linger or hold the SQLite file open.
+2. **Starts a fresh uvicorn** on port 8000 in a single process (no `--reload` — reload spawns duplicate workers), redirecting output to `backend/logs/backend_out.log` / `backend_err.log`.
+3. **Writes the real PID** to `backend/live_pid.txt` and waits for `/api/health` (up to ~30s; first boot may seed data).
+
+To stop the backend:
+
+```powershell
+.\scripts\stop_backend.ps1            # default port 8000
+.\scripts\stop_backend.ps1 -Port 8000
+```
+
+`stop_backend.ps1` kills every process belonging to this backend — anything listening on the target port, any python process running `app.main:app` from this repo, and the stale `live_pid.txt` reference. Use it instead of closing individual terminals to avoid orphan/duplicate processes.
+
+> **Note:** These scripts are Windows/PowerShell only. On macOS / Linux run:
+> `source venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000`
+
+#### Frontend (separate terminal)
+
+```bash
 cd frontend
 npm install
 npm run dev
@@ -220,6 +246,9 @@ retail-personalisation/
 │   │       ├── admin.py          # Train, stats, right to forget
 │   │       └── mcp/              # OAuth / MCP auth support
 │   ├── data/                     # Model checkpoints + SQLite DB
+│   ├── scripts/
+│   │   ├── start_backend.ps1     # Canonical backend start (kills stale, starts, waits for health)
+│   │   └── stop_backend.ps1      # Cleanly stop all backend processes + free the port
 │   ├── requirements.txt
 │   ├── pytest.ini
 │   └── render.yaml
