@@ -33,6 +33,7 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 | **Database** | SQLAlchemy + asyncpg (PostgreSQL) / aiosqlite (SQLite) | Behavioural events, customer profiles, products, segments, offers, consent logs |
 | **Cache** | Redis (optional, gracefully degrades) | Recommendation cache, rate limiting |
 | **ML Engine** | scikit-learn TruncatedSVD + cosine similarity | Hybrid collaborative filtering + content-based filtering |
+| **Lint / Quality** | ruff (backend via `backend/pyproject.toml`), `tsc -b` + Vite build (frontend) | `ruff check app` passes clean; frontend type-checks and builds |
 
 ---
 
@@ -56,6 +57,7 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 - 8 behavioural segments with hardcoded business rules: `high_value`, `bargain_hunter`, `new_user`, `lapsed`, `cart_abandoner`, `brand_loyalist`, `window_shopper`, `power_user`
 - 8 predefined offers targeted to specific segments (e.g., "Welcome 15% Off" for new users, "VIP Exclusive: 25% Off" for high-value customers)
 - Automatic offer assignment on customer creation and daily batch refresh
+- **Individualized offers**: each customer's discount percentage and reason are computed from their own behaviour metrics (LTV, cart-abandon rate, engagement) — a dynamic **5–30%** band per offer
 - Currency conversion (USD, INR, EUR, JPY) — prices and discounts convert server-side based on customer preference
 
 ### 3. Intelligent Product Search
@@ -66,13 +68,22 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 ### 4. Privacy & Consent (GDPR / DPDP Act)
 - **Consent-gated**: All personalisation requires explicit opt-in
 - **Right to forget**: Deletes all behavioural data while keeping a minimal audit record
+- **Data export**: Customers can download a complete copy of their behavioural data (GDPR access rights / DPDP)
 - **No sensitive attributes**: All features are behavioural only — no age, gender, location, or demographics
 - **Audit trail**: Full consent_log with action, regulator (GDPR/DPDP), and timestamp
 - **Transparent reason codes**: Every recommendation explains why it was made — no black boxes
 
-### 5. Live Demo Mode
-- Browse a full product catalog without any signup
-- Search, filter by category, and view product details in an interactive demo
+### 5. Security Hardening
+- **Environment-based secrets**: JWT `SECRET_KEY` and the MCP signature secret are read from the environment (no hardcoded production secrets); on Render, `SECRET_KEY` is set as an uncommitted secret
+- **Restricted CORS allowlist**: defaults to local dev origins only (not `*`); set `CORS_ORIGINS` to your deployed origin
+- **bcrypt password hashing** with tunable cost — no plaintext credentials are stored
+- **Bearer token is the source of identity**: `X-User-Email`-style headers are never trusted; every owner-scoped route re-verifies the token
+- **Role enforcement**: admin-only endpoints re-check the authenticated customer's role (no client-asserted role)
+
+### 6. Live Demo Mode
+- Browse the **full live product catalog** (760 products) with **no signup** — the demo loads real data from the public product APIs, no mock/hardcoded products
+- Instant client-side search across product name, brand, and category
+- Open an interactive product-detail modal from any card
 - See the same UI and interaction patterns as the full platform
 
 ---
@@ -137,7 +148,11 @@ The project includes a `render.yaml` for one-click deployment on Render. Set the
 |----------|---------|-------------|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./data/personalisation.db` | PostgreSQL URL for production |
 | `REDIS_URL` | (empty) | Redis URL for caching |
-| `CORS_ORIGINS` | `["*"]` | Allowed CORS origins |
+| `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000` | Comma-separated allowed origins — set to your deployed origin (render.yaml ships `https://retail-hyper.onrender.com`) |
+| `SECRET_KEY` | (empty) | **REQUIRED in production** — random JWT signing secret (use the Render secret field, `sync: false`, never a committed value) |
+| `DEMO_PASSWORD` | `Customer@2030` | Default password for the seeded demo/admin accounts |
+
+> **Note on credentials:** `admin@personalshop.com` / `Customer@2030` are the seeded **demo** credentials for local development and testing. For any shared or production deployment set a strong random `SECRET_KEY` and override `DEMO_PASSWORD` via the environment.
 
 ---
 
@@ -168,7 +183,7 @@ The project includes a `render.yaml` for one-click deployment on Render. Set the
 
 ## Training the Model
 
-Visit the admin dashboard and click **"Train Model"** or call the API directly. Admin endpoints require a valid Bearer token for the seeded admin account (`admin@personalshop.com` / `Customer@2030`):
+Visit the admin dashboard and click **"Train Model"** or call the API directly. Admin endpoints require a valid Bearer token for the seeded admin account (`admin@personalshop.com` / `Customer@2030`; see note below):
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
@@ -225,30 +240,35 @@ retail-personalisation/
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py              # FastAPI entry point + lifespan
-│   │   ├── config.py             # Settings via env vars
+│   │   ├── config.py             # Settings via env vars (.env support)
 │   │   ├── database.py           # Async SQLAlchemy engine
 │   │   ├── models.py             # ORM models (9 tables)
 │   │   ├── schemas.py            # Pydantic v2 schemas
 │   │   ├── recommender.py        # Hybrid CF + CBF engine (SVD)
-│   │   ├── offers.py             # Segment logic + offer assignment
+│   │   ├── offers.py             # Segment logic + individualized offer engine
 │   │   ├── privacy.py            # Consent service + right to forget
 │   │   ├── currency.py           # Currency conversion (USD/INR/EUR/JPY)
 │   │   ├── cache.py              # Redis cache helpers
 │   │   ├── utils.py              # DB-portable utilities
+│   │   ├── security.py           # bcrypt hashing + bearer-token auth
+│   │   ├── serializers.py        # Shared product/response serialization
 │   │   ├── seed_data.py          # Synthetic data generator
-│   │   └── routers/
-│   │       ├── events.py         # Event ingestion
-│   │       ├── customers.py      # Customer CRUD + search + profile
-│   │       ├── products.py       # Product search with synonyms
-│   │       ├── recommendations.py# Personalised recs with cold-start
-│   │       ├── offers.py         # Customer offers endpoint
-│   │       ├── insights.py       # Recently viewed + continue shopping
-│   │       ├── admin.py          # Train, stats, right to forget
-│   │       └── mcp/              # OAuth / MCP auth support
+│   │   ├── routers/
+│   │   │   ├── auth.py           # Login + token issuance
+│   │   │   ├── events.py         # Event ingestion
+│   │   │   ├── customers.py      # Customer CRUD + search + profile
+│   │   │   ├── products.py       # Product search with synonyms
+│   │   │   ├── recommendations.py# Personalised recs with cold-start
+│   │   │   ├── offers.py         # Customer offers endpoint
+│   │   │   ├── orders.py         # Order placement + history + detail
+│   │   │   ├── insights.py       # Recently viewed + continue shopping
+│   │   │   └── admin.py          # Train, stats, right to forget
+│   │   └── mcp/                  # MCP OAuth + JWT signature auth (sales-assistant MCP server)
 │   ├── data/                     # Model checkpoints + SQLite DB
 │   ├── scripts/
 │   │   ├── start_backend.ps1     # Canonical backend start (kills stale, starts, waits for health)
 │   │   └── stop_backend.ps1      # Cleanly stop all backend processes + free the port
+│   ├── pyproject.toml            # ruff lint configuration
 │   ├── requirements.txt
 │   ├── pytest.ini
 │   └── render.yaml
@@ -265,6 +285,7 @@ retail-personalisation/
 │   │       ├── CustomerSearch.tsx # Admin customer search
 │   │       ├── CustomerProfile.tsx# Profile card + metrics grid
 │   │       ├── ProductSearch.tsx  # Product catalog with filters
+│   │       ├── PrivacyModal.tsx   # Privacy policy + consent modal
 │   │       ├── RecommendationsPanel.tsx # Recs grid + reason badges
 │   │       ├── OffersPanel.tsx    # Active offers display
 │   │       ├── AnalyticsPage.tsx  # System stats + segment charts
