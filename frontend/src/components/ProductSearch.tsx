@@ -319,7 +319,7 @@ export default function ProductSearch({ showAllOnMount, customerId, externalQuer
   return (
     <div className="space-y-5">
       <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <input

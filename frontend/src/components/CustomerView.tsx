@@ -687,7 +687,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
               <ShoppingBag className="w-4 h-4 text-white" />
             </div>
-            <span className="text-lg font-bold text-purple-400">PersonalShop</span>
+            <span className="hidden sm:block text-lg font-bold text-purple-400">PersonalShop</span>
           </div>
 
           <div className="hidden md:flex flex-1 max-w-md mx-6">
@@ -703,7 +703,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button onClick={() => setShowCart(true)} className="relative w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
               <ShoppingCart className="w-4 h-4 text-zinc-300" />
               {cartCount > 0 && (

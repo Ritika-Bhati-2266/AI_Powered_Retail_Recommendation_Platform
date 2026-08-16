@@ -267,7 +267,7 @@ export default function DemoView({ onBack }: DemoViewProps) {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
               <ShoppingBag className="w-4 h-4 text-white" />
             </div>
-            <span className="text-lg font-bold text-purple-400">PersonalShop</span>
+            <span className="hidden sm:block text-lg font-bold text-purple-400">PersonalShop</span>
           </div>
 
           <div className="hidden md:flex flex-1 max-w-md mx-6">
@@ -283,8 +283,8 @@ export default function DemoView({ onBack }: DemoViewProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-2.5 py-1.5">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden sm:flex items-center gap-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-2.5 py-1.5">
               <DollarSign className="w-3.5 h-3.5 text-zinc-400" />
               <span className="text-xs font-medium text-zinc-200">USD</span>
             </div>

@@ -421,7 +421,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
               <ShoppingBag className="w-4 h-4 text-white" />
             </div>
-            <span className="text-lg font-bold text-purple-400">PersonalShop</span>
+            <span className="hidden sm:block text-lg font-bold text-purple-400">PersonalShop</span>
           </div>
 
           <div ref={searchContainerRef} className="hidden md:flex flex-1 max-w-md mx-6 relative">
@@ -454,7 +454,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
             document.body
           )}
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button className="w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
               <Sun className="w-4 h-4 text-zinc-300" />
             </button>
@@ -463,7 +463,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
               <ShoppingCart className="w-4 h-4 text-zinc-300" />
             </button>
 
-            <div className="flex items-center gap-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-2.5 py-1.5">
+            <div className="hidden sm:flex items-center gap-1.5 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-2.5 py-1.5">
               <User className="w-3.5 h-3.5 text-zinc-400" />
               <span className="text-xs font-medium text-zinc-200">Hi, Guest</span>
             </div>
@@ -472,7 +472,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
                 <User className="w-4 h-4 text-white" />
               </div>
-              <span className="text-xs font-medium text-zinc-200">Guest</span>
+              <span className="hidden sm:block text-xs font-medium text-zinc-200">Guest</span>
             </div>
           </div>
         </div>
