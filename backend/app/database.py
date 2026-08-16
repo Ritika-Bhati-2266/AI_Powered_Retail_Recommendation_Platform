@@ -14,16 +14,37 @@ def _is_sqlite(url: str) -> bool:
     return url.startswith("sqlite")
 
 
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-    # SQLite doesn't need pool sizing; Postgres does
-    **({} if _is_sqlite(settings.DATABASE_URL) else {
-        "pool_size": 20,
-        "max_overflow": 10,
-    }),
-)
+# ── Engine construction ──────────────────────────────────────────────────────
+# SQLite: use WAL journal mode + a generous busy timeout so the backend can
+# keep serving reads while one-off migration/maintenance scripts (ALTER TABLE,
+# bulk updates) hold the write lock, instead of failing with "database is
+# locked" or stalling requests. Postgres uses a sized pool instead.
+_engine_kwargs: dict = {
+    "echo": False,
+    "pool_pre_ping": True,
+}
+if _is_sqlite(settings.DATABASE_URL):
+    _engine_kwargs["connect_args"] = {"timeout": 30}  # sqlite busy timeout (s)
+else:
+    _engine_kwargs["pool_size"] = 20
+    _engine_kwargs["max_overflow"] = 10
+
+engine = create_async_engine(settings.DATABASE_URL, **_engine_kwargs)
+
+if _is_sqlite(settings.DATABASE_URL):
+    from sqlalchemy import event
+
+    @event.listens_for(engine.sync_engine, "connect")
+    def _set_sqlite_pragmas(dbapi_conn, connection_record):
+        """Per-connection SQLite settings: WAL + long busy timeout."""
+        cur = dbapi_conn.cursor()
+        try:
+            cur.execute("PRAGMA journal_mode=WAL")
+            cur.execute("PRAGMA busy_timeout=30000")
+            cur.execute("PRAGMA synchronous=NORMAL")
+            cur.execute("PRAGMA foreign_keys=ON")
+        finally:
+            cur.close()
 
 async_session_factory = async_sessionmaker(
     engine,

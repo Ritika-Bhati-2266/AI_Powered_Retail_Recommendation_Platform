@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Sparkles, Mail, ArrowRight, Loader2, AlertCircle, User, UserPlus, ArrowLeft, LogIn, ShoppingBag, Search, ShoppingCart, Sun, BrainCircuit, Star, Smartphone, Shirt, BookOpen, Gamepad2, X, Lock, ShieldCheck } from 'lucide-react';
-import { apiClient, ApiError } from '../api/client';
+import { apiClient, ApiError, BackendUnreachableError } from '../api/client';
 import PrivacyModal from './PrivacyModal';
 import type { CustomerFull } from '../types';
 
@@ -101,10 +101,13 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
       };
       onLogin(customer);
     } catch (err: unknown) {
-      if (err instanceof ApiError && err.status === 401) {
+      if (err instanceof BackendUnreachableError) {
+        // Backend is down/restarting — this is NOT a credentials problem.
+        setError('The server is starting up or temporarily unavailable. Please wait a moment and try again.');
+      } else if (err instanceof ApiError && err.status === 401) {
         setError('Incorrect email or password.');
       } else {
-        setError('Something went wrong. Please try again.');
+        setError('Something went wrong. Please try again. If this continues, please check that the backend server is running.');
       }
     } finally {
       setLoading(false);
@@ -128,7 +131,9 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
       await apiClient.login(email, signupPassword);
       onLogin(customer);
     } catch (err: any) {
-      if (err?.status === 409) {
+      if (err instanceof BackendUnreachableError) {
+        setSignupError('The server is starting up or temporarily unavailable. Please wait a moment and try again.');
+      } else if (err?.status === 409) {
         setSignupError('This email is already registered. Try signing in instead.');
       } else if (err?.status === 422) {
         setSignupError('Password must be at least 8 characters.');

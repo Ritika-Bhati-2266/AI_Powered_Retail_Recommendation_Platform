@@ -163,12 +163,16 @@ else:
 
 
 # ── Direct run ───────────────────────────────────────────────────────────────
+# Note: reload is OFF by default. `--reload` spawns a reloader + worker pair and
+# on Windows the venv launcher adds another child, which historically produced
+# confusing duplicate processes and port conflicts. Use scripts/start_backend.ps1
+# for the canonical single-process start.
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
+        host=os.environ.get("HOST", "0.0.0.0"),
+        port=int(os.environ.get("PORT", "8000")),
+        reload=os.environ.get("RELOAD", "0").strip().lower() in ("1", "true", "yes"),
     )

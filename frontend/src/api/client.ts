@@ -11,6 +11,17 @@ export class ApiError extends Error {
   }
 }
 
+// Thrown whenever the backend itself is unreachable (crashed, still starting
+// up, busy, or running on the wrong port) — NOT a credentials/data problem.
+export class BackendUnreachableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BackendUnreachableError';
+  }
+}
+
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export const tokenStore = {
   get(): string | null {
     return sessionStorage.getItem('access_token');
@@ -49,13 +60,50 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  // Abort after REQUEST_TIMEOUT_MS so a busy/stuck backend can't hang the UI
+  // forever — the user gets a clear "server busy" message instead.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    // Fetch only throws on transport-level failures: DNS, connection refused,
+    // socket reset — i.e. the backend is unreachable.
+    const timedOut = err instanceof DOMException && err.name === 'AbortError';
+    throw new BackendUnreachableError(
+      timedOut
+        ? 'The server is taking too long to respond — it may be busy or still starting up. Please wait a moment and try again.'
+        : 'Connection error — the backend appears to be unavailable or starting up. Please wait a moment and try again.'
+    );
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => 'Unknown error');
+
+    // The Vite proxy/dev proxy returns 503 with a `backend_unreachable` flag
+    // when it cannot reach the backend — surface that as a connection problem,
+    // not a data/credentials problem.
+    if (response.status === 503) {
+      try {
+        const body = JSON.parse(text);
+        if (body?.error === 'backend_unreachable') {
+          throw new BackendUnreachableError(
+            'Server is starting up or temporarily unavailable. Please wait a moment and try again.'
+          );
+        }
+      } catch {
+        /* not a proxy error body — fall through to the normal ApiError */
+      }
+    }
+
     // A 401 on an authenticated call means the stored token is invalid/expired.
     // Only treat /auth/login 401s as normal "wrong credentials" (shown inline by
     // the login form) — never clear an otherwise-active session for those.
