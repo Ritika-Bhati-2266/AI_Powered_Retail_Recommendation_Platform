@@ -1143,7 +1143,6 @@ SUBCATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1516321318423-f06f85e504b3",
     ],
     "Cameras": [
-        "photo-1516035069371-29a1b244cc32",
         "photo-1502920514313-52581002a659",
         "photo-1519183071298-a2962feb14f4",
         "photo-1495707902641-75cac588d2e9",
@@ -1151,6 +1150,7 @@ SUBCATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1510127034890-ba27508e9f1c",
         "photo-1520549233664-03f65c1d1327",
         "photo-1555066931-4365d14bab8c",
+        "photo-1500634245200-e5245c7574ef",
     ],
     "Cables & Chargers": [
         "photo-1585336261022-680e295ce3fe",
@@ -1166,9 +1166,11 @@ SUBCATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1608043152269-423dbba4e7e1",
         "photo-1544383835-bda2bc66a55d",
         "photo-1558089687-f282ffcbc126",
-        "photo-1591047139829-d91aecb6caea",
         "photo-1545454675-3531b543be5d",
         "photo-1487058792275-0ad4aaf24ca7",
+        "photo-1589003077984-894e133dabab",
+        "photo-1608156639585-b3a032ef9689",
+        "photo-1611162617213-7d7a39e9b1d7",
     ],
     "Vitamins & Supplements": [
         "photo-1670850757896-e1b6c3e311ea",
@@ -1225,7 +1227,6 @@ SUBCATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1596236100223-f3c656de3038",
         "photo-1508685096489-7aacd43bd3b1",
         "photo-1434494878577-86c23bcb06b9",
-        "photo-1544117519-31a4b719223d",
         "photo-1597923709001-5a061c88418d",
         "photo-1503328427499-d92d1ac3d174",
         "photo-1660844817855-3ecc7ef21f12",
@@ -1468,6 +1469,18 @@ PET_DOG_IMAGE_POOL: list[str] = [
     "photo-1543466835-00a7907e9de1",
 ]
 
+# Neutral pet products (grooming gloves, nail grinders, water bottles, etc.)
+# get their own disjoint pool so their images never collide with the
+# species-specific pools when the shared per-run used-set is consulted.
+PET_MIXED_IMAGE_POOL: list[str] = [
+    "photo-1601758228041-f3b2795255f1",
+    "photo-1537151608828-ea2b11777ee8",
+    "photo-1553163147-622ab57be1c7",
+    "photo-1583512603805-3cc6b41f3edb",
+    "photo-1507146426996-ef05306b995a",
+    "photo-1576201836106-db1758fd1c97",
+]
+
 CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
     "Electronics": [
         "photo-1519389950473-47ba0277781c",
@@ -1544,6 +1557,11 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1519238263530-99bdd11df2ea",
         "photo-1611080626919-7cf5a9dbab5b",
         "photo-1526510747491-58f928ec870f",
+        "photo-1483985988355-763728e1935b",
+        "photo-1479064555552-3ef4979f8908",
+        "photo-1509316785289-025f5b846b35",
+        "photo-1539533018447-63fcce2678e3",
+        "photo-1551488831-00ddcb6c6bd3",
     ],
     "Home & Kitchen": [
         "photo-1556909114-f6e7ad7d3136",
@@ -1658,6 +1676,17 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1606326608606-aa0b62935f2b",
         "photo-1505686994434-e3cc5abf1330",
         "photo-1514846326710-096e4a8035e0",
+        "photo-1537495329792-41ae41ad3bf0",
+        "photo-1623276527153-fa38c1616b05",
+        "photo-1526243741027-444d633d7365",
+        "photo-1491841550275-ad7854e35ca6",
+        "photo-1497633762265-9d179a990aa6",
+        "photo-1568667256549-094345857637",
+        "photo-1576871337632-b9aef4c17ab9",
+        "photo-1485955900006-10f4d324d411",
+        "photo-1474932430478-367dbb6832c1",
+        "photo-1587876931567-564ce588bfbd",
+        "photo-1519996529931-28324d5a630e",
     ],
     "Sports & Outdoors": [
         "photo-1517838277536-f5f99be501cd",
@@ -1778,6 +1807,7 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1560769629-975ec94e6a86",
         "photo-1495214783159-3503fd1b572d",
         "photo-1611930022073-b7a4ba5fcccd",
+        "photo-1516726817505-f5ed825624d8",
     ],
     "Beauty": [
         "photo-1487412912498-0447578fcca8",
@@ -1977,14 +2007,16 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1565958011703-44f9829ba187",
         "photo-1607083206968-13611e3d76db",
         "photo-1607082348824-0a96f2a4b9da",
-        "photo-1533035353720-f1c6a75cd8ab",
-        "photo-1495474472287-4d71bcdd2085",
         "photo-1596040033229-a9821ebd058d",
         "photo-1615485290382-441e4d049cb5",
         "photo-1547592180-85f173990554",
         "photo-1610970881699-44a5587cabec",
         "photo-1571115177098-24ec42ed204d",
         "photo-1615485925600-97237c4fc1ec",
+        "photo-1466637574441-749b8f19452f",
+        "photo-1473093295043-cdd812d0e601",
+        "photo-1516483638261-f4dbaf036963",
+        "photo-1556910103-1c02745aae4d",
     ],
     "Grocery": [
         "photo-1488459716781-31db52582fe9",
@@ -2126,8 +2158,6 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1734605044291-d0a3d1bf3588",
         "photo-1689691811704-ae78d70117ce",
         "photo-1689691849957-1ce9f9315e91",
-        "photo-1498050108023-c5249f4df085",
-        "photo-1593642702821-c8da6771f0c6",
         "photo-1492138786289-d35ea832da43",
         "photo-1510519138101-570d1dca3d66",
         "photo-1616440347437-b1c73416efc2",
@@ -2178,6 +2208,22 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1590959651373-a3db0f38a961",
         "photo-1606131731446-5568d87113aa",
         "photo-1609521263047-f8f205293f24",
+        "photo-1546015720-b8b30df5aa27",
+        "photo-1522771930-78848d9293e8",
+        "photo-1470124182917-cc6e71b22ecc",
+        "photo-1544126592-807ade215a0b",
+        "photo-1559742811-822873691df8",
+        "photo-1502899576159-f224dc2349fa",
+        "photo-1519947486511-46149fa0a254",
+        "photo-1556760544-74068565f05c",
+        "photo-1469571486292-0ba58a3f068b",
+        "photo-1524638431109-93d95c968f03",
+        "photo-1534080564583-6be75777b70a",
+        "photo-1542051841857-5f90071e7989",
+        "photo-1542751371-adc38448a05e",
+        "photo-1519225421980-715cb0215aed",
+        "photo-1473625247510-8ceb1760943f",
+        "photo-1545167622-3a6ac756afa4",
     ],
     "Health & Wellness": [
         "photo-1740479050129-7fef21254518",
@@ -2229,6 +2275,8 @@ CATEGORY_IMAGE_POOL: dict[str, list[str]] = {
         "photo-1533174072545-7a4b6ad7a6c3",
         "photo-1465847899084-d164df4dedc6",
         "photo-1558862107-d49ef2a04d72",
+        "photo-1511671782779-c97d3d27a1d4",
+        "photo-1524368535928-5b5e00ddc76b",
     ],
 }
 
@@ -2255,19 +2303,29 @@ def generate_email(first: str, last: str, idx: int) -> str:
     return f"{local}{idx}@{random.choice(domains)}"
 
 
-def _pet_image_pool(name: str, subcategory: str) -> list[str]:
-    """Pick a species-appropriate image pool for Pet Supplies products."""
+def _pet_species(name: str, subcategory: str) -> str:
+    """Classify a Pet Supplies product as cat, dog, or mixed."""
     text = f"{subcategory} {name}".lower()
     cat_keywords = ["cat", "kitten", "catnip", "kitty"]
     dog_keywords = ["dog", "puppy", "canine"]
     has_cat = any(k in text for k in cat_keywords)
     has_dog = any(k in text for k in dog_keywords)
     if has_cat:
-        return list(PET_CAT_IMAGE_POOL)
+        return "cat"
     if has_dog:
+        return "dog"
+    return "mixed"
+
+
+def _pet_image_pool(name: str, subcategory: str) -> list[str]:
+    """Pick a species-appropriate image pool for Pet Supplies products."""
+    species = _pet_species(name, subcategory)
+    if species == "cat":
+        return list(PET_CAT_IMAGE_POOL)
+    if species == "dog":
         return list(PET_DOG_IMAGE_POOL)
     # Mixed or neutral products (grooming gloves, nail grinders, etc.)
-    return PET_CAT_IMAGE_POOL + PET_DOG_IMAGE_POOL
+    return list(PET_MIXED_IMAGE_POOL)
 
 
 # Shared "already assigned" tracker per image pool (keyed by category or
@@ -2305,7 +2363,8 @@ def get_product_image_url(product_id: str, category: str, subcategory: str = "",
     run (collision-free assignment). Pet Supplies products are drawn from
     species-specific pools so cat and dog products never mix photos."""
     if category == "Pet Supplies":
-        return _pick_pool_image(product_id, "Pet Supplies", _pet_image_pool(name, subcategory))
+        species = _pet_species(name, subcategory)
+        return _pick_pool_image(product_id, f"Pet Supplies::{species}", _pet_image_pool(name, subcategory))
     pool = CATEGORY_IMAGE_POOL.get(category, CATEGORY_IMAGE_POOL.get("Electronics", []))
     pool_key = category
     if subcategory and subcategory in SUBCATEGORY_IMAGE_POOL:
