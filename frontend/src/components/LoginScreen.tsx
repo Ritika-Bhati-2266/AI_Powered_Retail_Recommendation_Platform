@@ -35,6 +35,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
+  const [signupConsent, setSignupConsent] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupError, setSignupError] = useState<string | null>(null);
   const [categoryPreferences, setCategoryPreferences] = useState<string[]>([]);
@@ -89,22 +90,10 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
     setError(null);
     try {
       const res = await apiClient.login(trimmed, password);
-      const customer: CustomerFull = {
-        customer_id: res.customer_id,
-        name: res.name,
-        email: res.email,
-        role: res.role,
-        consent_status: true,
-        segments: [],
-        metrics: {
-          total_views: 0, total_purchases: 0, total_cart_events: 0,
-          total_email_engagement: 0, avg_session_duration_minutes: 0,
-          days_since_last_activity: 0, lifetime_value: 0,
-          preferred_category: '', preferred_price_tier: '',
-        },
-        category_preferences: [],
-      };
-      onLogin(customer);
+      // Fetch the real profile so consent status, currency, and segments are
+      // accurate — never assume consent from the login response alone.
+      const profile = await apiClient.getCustomer(res.customer_id);
+      onLogin(profile);
     } catch (err: unknown) {
       if (err instanceof BackendUnreachableError) {
         // Backend is down/restarting — this is NOT a credentials problem.
@@ -131,7 +120,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
     setSignupLoading(true);
     setSignupError(null);
     try {
-      const customer = await apiClient.createCustomer(name, email, signupPassword, categoryPreferences);
+      const customer = await apiClient.createCustomer(name, email, signupPassword, categoryPreferences, signupConsent);
       // Obtain and store a token for the new account.
       await apiClient.login(email, signupPassword);
       onLogin(customer);
@@ -150,7 +139,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
     } finally {
       setSignupLoading(false);
     }
-  }, [signupName, signupEmail, signupPassword, categoryPreferences, onLogin]);
+  }, [signupName, signupEmail, signupPassword, signupConsent, categoryPreferences, onLogin]);
 
   const goToLogin = useCallback(() => {
     setPage('login');
@@ -162,6 +151,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
     setSignupName('');
     setSignupEmail('');
     setSignupPassword('');
+    setSignupConsent(false);
     setSignupError(null);
     setCategoryPreferences([]);
   }, []);
@@ -170,6 +160,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
     setSignupEmail(email);
     setPage('signup');
     setError(null);
+    setSignupConsent(false);
     setCategoryPreferences([]);
   }, [email]);
 
@@ -374,6 +365,33 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                     })}
                   </div>
                 </div>
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3.5">
+                  <label className="flex items-start gap-3 cursor-pointer select-none">
+                    <input
+                      id="signup-consent"
+                      type="checkbox"
+                      checked={signupConsent}
+                      onChange={(e) => setSignupConsent(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-zinc-600 bg-zinc-800 accent-purple-500 cursor-pointer"
+                    />
+                    <span className="text-xs text-zinc-300 leading-relaxed">
+                      I understand and agree that my browsing behaviour (pages viewed, products
+                      searched, cart/wishlist/purchase activity) may be analysed to personalise
+                      recommendations and offers.{' '}
+                      <button
+                        type="button"
+                        onClick={() => setShowPrivacy(true)}
+                        className="text-purple-400 hover:text-purple-300 underline underline-offset-2"
+                      >
+                        View Privacy Policy
+                      </button>
+                    </span>
+                  </label>
+                  <p className="text-[11px] text-zinc-500 mt-2 pl-7">
+                    This is an explicit opt-in — leave it unchecked to create the account with
+                    personalisation turned off. You can change this anytime from your account.
+                  </p>
+                </div>
                 <button
                   type="submit"
                   disabled={signupLoading || !signupName.trim() || !signupEmail.trim() || signupPassword.length < 8}
@@ -388,8 +406,8 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
                 </button>
               </form>
               <p className="text-xs text-zinc-600 mt-4 text-center leading-relaxed">
-                Creating an account enables consent so you get personalised recommendations.
-                By signing up you agree to how we handle your data.{' '}
+                We only track your behaviour for personalisation with your explicit consent.
+                Without it, your account works but you won't get personalised recommendations.{' '}
                 <button
                   type="button"
                   onClick={() => setShowPrivacy(true)}

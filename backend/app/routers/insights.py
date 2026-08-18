@@ -2,6 +2,7 @@
 Customer insights endpoints.
 GET /api/customers/{customer_id}/recently-viewed
 GET /api/customers/{customer_id}/continue-shopping
+GET /api/customers/{customer_id}/wishlist
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -61,6 +62,76 @@ async def get_recently_viewed(
 
     result = await db.execute(stmt)
     products = result.scalars().all()
+
+    return [serialize_product(p, customer_currency) for p in products]
+
+
+# Event types that add an item to / remove an item from the wishlist. The older
+# generic "wishlist" type is still treated as an "add" for backward compatibility
+# with events recorded before add/remove were distinguished.
+WISHLIST_ADD_TYPES = ("wishlist", "wishlist_add")
+WISHLIST_REMOVE_TYPES = ("wishlist_remove",)
+WISHLIST_EVENT_TYPES = WISHLIST_ADD_TYPES + WISHLIST_REMOVE_TYPES
+
+
+@router.get(
+    "/customers/{customer_id}/wishlist",
+    response_model=list[ProductSearchResult],
+)
+async def get_customer_wishlist(
+    customer_id: str,
+    limit: int = 50,
+    auth: Customer = Depends(require_owner),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the customer's current wishlist.
+
+    Wishlist state is derived from behaviour events: the most recent
+    wishlist-affecting event per product decides whether the product is on the
+    wishlist (a `wishlist_add`/`wishlist` puts it on, a `wishlist_remove` takes
+    it off).
+    """
+    # Check customer exists
+    result = await db.execute(
+        select(Customer).where(Customer.customer_id == customer_id)
+    )
+    customer = result.scalar_one_or_none()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    customer_currency = customer.currency or "USD"
+
+    events = await db.execute(
+        select(
+            Event.product_id,
+            Event.event_type,
+            Event.event_timestamp,
+        )
+        .where(
+            Event.customer_id == customer_id,
+            Event.event_type.in_(WISHLIST_EVENT_TYPES),
+            Event.product_id.isnot(None),
+        )
+        .order_by(Event.event_timestamp.asc())
+    )
+    latest_by_product: dict[str, str] = {
+        pid: etype for pid, etype, _ts in events.all()
+    }
+
+    wishlisted_ids = [
+        pid for pid, etype in latest_by_product.items()
+        if etype in WISHLIST_ADD_TYPES
+    ][:limit]
+
+    if not wishlisted_ids:
+        return []
+
+    products_result = await db.execute(
+        select(Product).where(Product.product_id.in_(wishlisted_ids))
+    )
+    products = products_result.scalars().all()
+    order = {pid: i for i, pid in enumerate(wishlisted_ids)}
+    products.sort(key=lambda p: order.get(p.product_id, 0))
 
     return [serialize_product(p, customer_currency) for p in products]
 

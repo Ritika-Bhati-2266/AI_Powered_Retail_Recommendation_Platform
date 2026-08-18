@@ -3,6 +3,20 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // recharts vendors d3 and is inherently large; with manualChunks it ships in
+    // its own opaque 'charts' chunk and only loads when charts render, so the
+    // app entry stays small. Raise the warning floor accordingly.
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          charts: ['recharts'],
+          'ui-icons': ['lucide-react'],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {

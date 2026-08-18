@@ -189,14 +189,14 @@ export const apiClient = {
     return res;
   },
 
-  async createCustomer(name: string, email: string, password: string, categoryPreferences?: string[]): Promise<CustomerFull> {
+  async createCustomer(name: string, email: string, password: string, categoryPreferences?: string[], consentGiven?: boolean): Promise<CustomerFull> {
     return request<CustomerFull>('/customers', {
       method: 'POST',
       body: JSON.stringify({
         name,
         email,
         password,
-        consent_given: true,
+        consent_given: consentGiven === true,
         category_preferences: categoryPreferences || [],
       }),
     });
@@ -247,6 +247,12 @@ export const apiClient = {
   getContinueShopping(customerId: string, limit: number = 10): Promise<Product[]> {
     return request<Product[]>(
       `/customers/${encodeURIComponent(customerId)}/continue-shopping?limit=${limit}`
+    );
+  },
+
+  getWishlist(customerId: string, limit: number = 50): Promise<Product[]> {
+    return request<Product[]>(
+      `/customers/${encodeURIComponent(customerId)}/wishlist?limit=${limit}`
     );
   },
 

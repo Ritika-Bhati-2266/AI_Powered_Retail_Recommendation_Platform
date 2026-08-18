@@ -43,6 +43,9 @@ class ConsentService:
         - Delete all segment assignments
         - Delete all customer_offers
         - Set consent_given = False
+        - Anonymize the account's personal data (name, email) and remove the
+          password so no PII is retained and the email address is freed for a
+          future re-registration
         - Log the 'forgotten' action
         - The customer record itself stays (minimal record that right was exercised)
         - Prior consent_log history is preserved as an audit trail
@@ -85,11 +88,20 @@ class ConsentService:
         # timestamp) and controllers are generally expected to retain proof
         # that consent was given/withdrawn (e.g. GDPR Art. 7(1)).
 
-        # 5. Set consent_given = False on the customer record
+        # 5. Set consent_given = False and anonymize the account: strip the
+        #    name, replace the email with an unrouteable placeholder so the
+        #    original address is released for a future signup, and remove the
+        #    password hash so the forgotten account can no longer be used.
         await self.db.execute(
             update(Customer)
             .where(Customer.customer_id == customer_id)
-            .values(consent_given=False, consent_timestamp=now)
+            .values(
+                name="(forgotten)",
+                email=f"{customer_id}@forgotten.invalid",
+                password_hash=None,
+                consent_given=False,
+                consent_timestamp=now,
+            )
         )
 
         # 6. Log the 'forgotten' action, tagged with the actual applicable regulator

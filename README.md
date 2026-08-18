@@ -167,17 +167,19 @@ On first startup, the backend automatically:
 
 ## Training the Model
 
-Visit the admin dashboard and click **"Train Model"** or call the API directly. Admin endpoints require a valid Bearer token for the seeded admin account (`admin@personalshop.com` / `Customer@2030`):
+Visit the admin dashboard and click **"Train Model"** or call the API directly. Admin endpoints require a valid Bearer token for the seeded admin account. The admin account and its password are created by the seed script (`backend/app/seed_data.py`) using `DEMO_PASSWORD` from the environment (see `backend/.env.example`):
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@personalshop.com","password":"Customer@2030"}' \
+  -d '{"email":"admin@personalshop.com","password":"'"$DEMO_PASSWORD"'"}' \
   | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
 
 curl -X POST http://localhost:8000/api/admin/train \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+> **Security note:** the seeded admin/demo password (`DEMO_PASSWORD`, currently `Customer@2030`) is **not a secret** — it ships with the repo and is documented. In any shared or production environment you **must** override `DEMO_PASSWORD` via the environment immediately and rotate the account password. Never treat the default demo credentials as real access control.
 
 Training runs in the background using scikit-learn's TruncatedSVD. Once complete, recommendations become available for all consenting customers.
 
@@ -195,7 +197,7 @@ Training runs in the background using scikit-learn's TruncatedSVD. Once complete
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@personalshop.com","password":"Customer@2030"}' \
+  -d '{"email":"admin@personalshop.com","password":"'"$DEMO_PASSWORD"'"}' \
   | python -c "import sys,json;print(json.load(sys.stdin)['access_token'])")
 
 curl -X POST http://localhost:8000/api/admin/right-to-forget/{customer_id} \
@@ -206,13 +208,15 @@ This:
 - Deletes all behavioural events for the customer
 - Removes recommendations, segments, and offers
 - Revokes consent
-- Logs the action with regulator and timestamp (minimal record kept)
+- Anonymizes the account (name and password removed, email replaced with an unrouteable placeholder), so the original email can be used for a fresh signup
+- Logs the action with regulator and timestamp (minimal audit record kept)
 
 ### What We DON'T Do
 - No demographic profiling (age, gender, location)
 - No sensitive attribute inference
 - No third-party data enrichment
 - No dark patterns or deceptive personalisation
+- Payment is **simulated** — checkout records an order but no real card, wallet, or gateway is charged. This is a demo, not a store.
 
 ---
 

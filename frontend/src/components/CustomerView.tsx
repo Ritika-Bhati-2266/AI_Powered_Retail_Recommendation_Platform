@@ -368,6 +368,70 @@ function Toast({ toast }: { toast: { message: string; type: string } | null }) {
   );
 }
 
+function WishlistPanel({ items, onClose, onRemove, onView }: { items: (Product | Recommendation)[]; onClose: () => void; onRemove: (productId: string) => void; onView: (product: Product | Recommendation) => void; }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md bg-zinc-900 border-l border-zinc-800 h-full flex flex-col shadow-2xl shadow-purple-600/10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+          <h2 className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+            <Heart className="w-5 h-5 text-rose-400" />
+            Your Wishlist ({items.length})
+          </h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all"
+          >
+            <X className="w-4 h-4 text-zinc-400" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          {items.length === 0 && (
+            <div className="text-center py-12">
+              <Heart className="w-16 h-16 text-zinc-700 mx-auto mb-3" />
+              <p className="text-zinc-500 text-sm">Your wishlist is empty</p>
+              <p className="text-zinc-600 text-xs mt-1">Tap the heart on any product to save it here.</p>
+            </div>
+          )}
+          {items.map((product) => (
+            <div key={product.product_id} className="flex items-center gap-3 bg-zinc-800/30 rounded-xl p-3 border border-zinc-800/50">
+              <div
+                className="w-14 h-14 rounded-lg bg-zinc-800 overflow-hidden flex-shrink-0 cursor-pointer"
+                onClick={() => onView(product)}
+              >
+                {product.image_url && (
+                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                )}
+              </div>
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
+                onClick={() => onView(product)}
+              >
+                <p className="text-sm font-medium text-zinc-200 truncate">{product.name}</p>
+                <p className="text-xs text-zinc-500 mt-0.5">{formatPrice(product.price, product.symbol)}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <button
+                  onClick={() => onRemove(product.product_id)}
+                  className="flex items-center gap-1 text-xs text-zinc-500 hover:text-rose-400 transition-colors"
+                >
+                  <X className="w-3 h-3" /> Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OrderHistoryModal({ orders, symbolFor, onClose, loading, error }: { orders: Order[]; symbolFor: (currency: string) => string; onClose: () => void; loading: boolean; error: boolean; }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={onClose}>
@@ -461,6 +525,8 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   const [selectedProduct, setSelectedProduct] = useState<Product | Recommendation | null>(null);
   const [cartItems, setCartItems] = useState<Map<string, { product: Product | Recommendation; quantity: number }>>(new Map());
   const [wishlistItems, setWishlistItems] = useState<Set<string>>(new Set());
+  const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
+  const [showWishlist, setShowWishlist] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
   const [showCart, setShowCart] = useState(false);
   const [submittingOrder, setSubmittingOrder] = useState(false);
@@ -547,7 +613,16 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   }, [customer.customer_id]);
 
   const handleWishlist = useCallback((product: Product | Recommendation) => {
-    apiClient.trackEvent(customer.customer_id, 'wishlist', product.product_id, sessionId);
+    const willAdd = !wishlistItems.has(product.product_id);
+    // Persist the wishlist toggle as a behaviour event (consent-gated server
+    // side). The event type lets the backend distinguish add vs remove so the
+    // wishlist survives a page refresh.
+    apiClient.trackEvent(
+      customer.customer_id,
+      willAdd ? 'wishlist_add' : 'wishlist_remove',
+      product.product_id,
+      sessionId,
+    ).catch(() => {});
     setWishlistItems((prev) => {
       const next = new Set(prev);
       if (next.has(product.product_id)) {
@@ -559,7 +634,15 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
       }
       return next;
     });
-  }, [customer.customer_id, sessionId, showToast]);
+    setWishlistProducts((prev) => {
+      if (willAdd) {
+        return prev.some((p) => p.product_id === product.product_id)
+          ? prev
+          : [product as Product, ...prev];
+      }
+      return prev.filter((p) => p.product_id !== product.product_id);
+    });
+  }, [customer.customer_id, sessionId, showToast, wishlistItems]);
 
   const handleProductClick = useCallback((product: Product | Recommendation) => {
     setSelectedProduct(product);
@@ -672,6 +755,18 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
     return () => { cancelled = true; };
   }, [customer.customer_id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.getWishlist(customer.customer_id)
+      .then((data) => {
+        if (cancelled) return;
+        setWishlistProducts(data);
+        setWishlistItems(new Set(data.map((p) => p.product_id)));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [customer.customer_id, customer.consent_status]);
+
   // "Continue Shopping" is cart-based (items added to cart but not purchased).
   // When the customer hasn't added anything yet, fall back to what they viewed
   // so the section shows useful continuation items instead of a misleading
@@ -708,6 +803,13 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
               <ShoppingCart className="w-4 h-4 text-zinc-300" />
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-gradient-to-br from-purple-600 to-pink-500 rounded-full text-[9px] font-bold text-white flex items-center justify-center shadow-lg px-1">{cartCount}</span>
+              )}
+            </button>
+
+            <button onClick={() => setShowWishlist(true)} title="Your Wishlist" className="relative w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+              <Heart className="w-4 h-4 text-rose-400" />
+              {wishlistItems.size > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-600 rounded-full text-[9px] font-bold text-white flex items-center justify-center shadow-lg px-1">{wishlistItems.size}</span>
               )}
             </button>
 
@@ -949,6 +1051,18 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
           onRemove={handleRemoveFromCart}
           onCheckout={handleCheckout}
           submitting={submittingOrder}
+        />
+      )}
+
+      {showWishlist && (
+        <WishlistPanel
+          items={wishlistProducts}
+          onClose={() => setShowWishlist(false)}
+          onRemove={(productId) => {
+            const p = wishlistProducts.find((item) => item.product_id === productId);
+            if (p) handleWishlist(p);
+          }}
+          onView={handleProductClick}
         />
       )}
 

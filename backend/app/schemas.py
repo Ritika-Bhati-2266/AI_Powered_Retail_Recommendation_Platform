@@ -58,7 +58,9 @@ class CustomerCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     email: str = Field(default="", max_length=255)
     password: str = Field(..., min_length=8, max_length=128, description="Account password (min 8 characters)")
-    consent_given: bool = True
+    # GDPR/DPDP explicit opt-in: consent must be the result of a deliberate user
+    # action (an unchecked-by-default checkbox). Never default this to True.
+    consent_given: bool = False
     currency: str = "USD"
     category_preferences: list[str] = Field(default_factory=list, description="Categories the customer is interested in (cold-start)")
 
