@@ -327,8 +327,10 @@ async def main() -> None:
             "content_vectors_shape": list(content.shape),
             "model_file_mb": round(os.path.getsize(settings.MODEL_PATH) / 1e6, 2),
             "estimated_ram_mb": round(
-                (n_users * len(user_fac)) + (n_items * len(item_fac))
-                + (content.size) ) * 4 / 1e6,
+                ((n_users * user_fac.shape[1]) + (n_items * item_fac.shape[1]) + content.size)
+                * user_fac.dtype.itemsize / 1e6,
+                3,
+            ),
         }
         print("MODEL SIZE:", json.dumps(report["model_size"]))
 

@@ -306,35 +306,35 @@ full real database — not just a handful of synthetic customers:
 
 | Metric | Measured value |
 |---|---|
-| Dataset verified | **560 customers** (266 with behavioural events), **760 products**, **5,777 events**, 269 consenting |
-| Model training (full retrain) | **~0.3 s** total (feature build ~0.11 s, SVD fit ~0.016 s, 50 components, 266×760 matrix, 1.06 MB `model.pkl`) |
-| Batch recommendation refresh (`/api/admin/train` store phase, 269 customers) | **~36 s** total — scoring ~17 s, SQLite delete+insert persist ~19 s |
+| Dataset verified | **505 customers** (258 with behavioural events), **760 products**, **5,569 events**, 259 consenting |
+| Model training (full retrain) | **~0.1 s** total (feature build ~0.07 s, SVD fit ~0.012 s, 50 components, 258×760 matrix, 1.06 MB `model.pkl`) |
+| Batch recommendation refresh (`/api/admin/train` store phase, 259 customers) | **~30 s** total — scoring ~11 s, SQLite delete+insert persist ~19 s |
 | Live recommendation GET (cold, sequential) | **p50 ~19 ms, p95 ~53 ms** |
 | Concurrent burst (43 simultaneous GETs, distinct customers) | **no errors, ~37 req/s, p50 ~735 ms, p95 ~1.1 s** |
-| `/api/admin/train` during 50 concurrent GETs | **no errors/timeouts**; training runs in background (~36 s) and reads degraded to **p50 ~1.9 s, p95 ~3.2 s**; engine swaps atomically on completion |
-| Offer assignment (`assign_offers`) | **~0.03 s** for 269 customers / 135 assignments |
-| Model RAM footprint | ~3 MB total (user factors 266×50, item factors 760×50, content vectors 760×131) |
+| `/api/admin/train` during 50 concurrent GETs | **no errors/timeouts**; training runs in background (~30 s) and reads degraded to **p50 ~1.9 s, p95 ~3.2 s**; engine swaps atomically on completion |
+| Offer assignment (`assign_offers`) | **~0.03 s** for 259 customers / 125 assignments |
+| Model RAM footprint | ~1.2 MB total (user factors 258×50, item factors 760×50, content vectors 760×131, float64) |
 
 Correctness at this scale:
 
-- **266/266 event-having customers served personalised `svd` recs** (261 distinct
-  lists; at most 3 customers shared an identical list). No trace of the old
-  pre-fix symptom where everyone got one generic popular list.
-- **98.5%** of event-having customers have their dominant browsing category
-  inside the top-10 recs; **78.9%** have it as the #1 recommendation. The 4/266
+- **258/258 event-having customers served personalised `svd` recs** — 258
+  distinct lists, one per customer (no two customers shared an identical list).
+  No trace of the old pre-fix symptom where everyone got one generic popular
+  list.
+- **98.84%** of event-having customers have their dominant browsing category
+  inside the top-10 recs; **77.52%** have it as the #1 recommendation. The 3/258
   exceptions are expected collaborative-filtering behaviour (customer bought
   most of what they browsed, so remaining recs come from similar neighbours) —
   not a correctness bug.
-- Customers with **no behavioural events** (294) correctly get the global
+- Customers with **no behavioural events** (247) correctly get the global
   popularity list as the last resort; consenting signup-preference customers are
   served `cold_start` instead.
-- Only customers with active consent (269) are written to
-  `recommendations`.
+- Only customers with active consent (259) are written to `recommendations`.
 
 ### Honest ceiling (measured, not guessed)
 
 - The **recommendation model is not the bottleneck** at this scale: training is
-  ~0.3 s and the SVD factors fit in ~3 MB of RAM. Even at the 500K-customer /
+  ~0.1 s and the SVD factors fit in ~1.2 MB of RAM. Even at the 500K-customer /
   20K-SKU design target, model RAM stays well under 200 MB and SVD refit is
   estimated in seconds-to-minutes (not verified at that size).
 - The first real ceiling is the **batch refresh**: it costs **~0.13 s per
