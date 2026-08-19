@@ -67,6 +67,7 @@ export interface Offer {
   discount_type: string;
   discount_value: number;
   discount_percentage?: number;
+  min_purchase?: number;
   reason?: string;
   valid_until: string;
   currency?: string;
@@ -103,6 +104,8 @@ export interface Order {
   customer_id: string;
   total_amount: number;
   currency: string;
+  applied_offer_id?: string;
+  discount_amount?: number;
   status: string;
   shipping_name?: string;
   shipping_address?: string;

@@ -75,7 +75,7 @@ export default function CustomerProfile({ customer }: CustomerProfileProps) {
     },
     {
       label: 'Lifetime Value',
-      value: formatPrice(customer.metrics.lifetime_value, customer.currency === 'INR' ? '₹' : customer.currency === 'EUR' ? '€' : customer.currency === 'JPY' ? '¥' : '$'),
+      value: formatPrice(customer.metrics.lifetime_value, '$'),
       icon: DollarSign,
       color: 'text-amber-400',
     },

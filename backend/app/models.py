@@ -173,6 +173,8 @@ class Order(Base):
     customer_id = Column(String(36), ForeignKey("customers.customer_id"), nullable=False, index=True)
     total_amount = Column(Float, nullable=False, default=0.0)
     currency = Column(String(3), nullable=False, default="USD")
+    applied_offer_id = Column(String(36), nullable=True)
+    discount_amount = Column(Float, nullable=False, default=0.0)
     status = Column(String(20), nullable=False, default="placed")
     shipping_name = Column(String(255), nullable=True)
     shipping_address = Column(String(500), nullable=True)

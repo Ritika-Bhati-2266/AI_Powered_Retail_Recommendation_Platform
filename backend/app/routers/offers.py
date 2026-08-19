@@ -55,6 +55,11 @@ async def get_customer_offers(
         if offer["discount_type"] in ("fixed", "fixed_amount", "free_shipping") and offer["discount_value"] > 0:
             converted_value, _, _ = convert_price(offer["discount_value"], customer_currency)
 
+        # min_purchase thresholds are stored in USD — convert for display so
+        # the client can compare the threshold against cart totals in the
+        # customer's currency.
+        converted_min, _, _ = convert_price(offer.get("min_purchase", 0) or 0, customer_currency)
+
         _, cur, sym = convert_price(0, customer_currency)  # Just get currency info
 
         result_list.append(OfferOut(
@@ -64,6 +69,7 @@ async def get_customer_offers(
             discount_type=offer["discount_type"],
             discount_value=converted_value,
             discount_percentage=offer.get("discount_percentage"),
+            min_purchase=converted_min,
             reason=offer.get("reason"),
             valid_until=offer["valid_until"],
             currency=cur,

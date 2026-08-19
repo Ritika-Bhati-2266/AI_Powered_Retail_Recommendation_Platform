@@ -32,6 +32,14 @@ async def login(
     )
     customer = result.scalar_one_or_none()
 
+    # Defense-in-depth: an account that exercised its right to forget is
+    # permanently dead. Reject the login before any password verification (or
+    # the seed-time demo-password backfill in seed_data.ensure_demo_passwords,
+    # which skips forgotten accounts) so an erased account can never be
+    # resurrected even if its password_hash is somehow non-null later.
+    if customer is not None and customer.forgotten_at is not None:
+        raise HTTPException(status_code=401, detail="This account has been deleted")
+
     # Deliberately fail the same way for unknown email and wrong password.
     if not customer or not verify_password(payload.password, customer.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")

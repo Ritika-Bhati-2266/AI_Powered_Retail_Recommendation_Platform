@@ -2,14 +2,30 @@
 Pydantic v2 models for all API request/response shapes.
 """
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 # ── Event ────────────────────────────────────────────────────────────────────
 
+# Behaviour events clients are allowed to submit directly. `purchase` is
+# deliberately absent: purchase events are emitted server-side only (during
+# order placement) and must never be forgeable via the public API, otherwise a
+# customer could spam "purchase" events and fabricate their segments/offers.
+CLIENT_EVENT_TYPES = Literal[
+    "page_view",
+    "add_to_cart",
+    "remove_from_cart",
+    "wishlist_add",
+    "wishlist_remove",
+    "email_open",
+    "email_click",
+]
+
+
 class EventCreate(BaseModel):
     customer_id: str
-    event_type: str
+    event_type: CLIENT_EVENT_TYPES
     product_id: str | None = None
     session_id: str | None = None
     metadata: dict | None = None
@@ -121,6 +137,7 @@ class OfferOut(BaseModel):
     discount_type: str
     discount_value: float
     discount_percentage: float | None = None
+    min_purchase: float = 0.0
     reason: str | None = None
     valid_until: datetime
     currency: str = "USD"
@@ -191,6 +208,8 @@ class OrderOut(BaseModel):
     customer_id: str
     total_amount: float
     currency: str = "USD"
+    applied_offer_id: str | None = None
+    discount_amount: float = 0.0
     status: str = "placed"
     shipping_name: str | None = None
     shipping_address: str | None = None

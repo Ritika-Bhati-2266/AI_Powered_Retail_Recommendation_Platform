@@ -8,6 +8,7 @@ from datetime import timedelta
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.currency import convert_price, price_to_usd
 from app.models import (
     Customer,
     CustomerCategoryPreference,
@@ -276,14 +277,21 @@ class OfferEngine:
 
         # Lifetime value — true spend derived from order line-item snapshots
         # (quantity × unit price), matching the value reported by the customer
-        # profile endpoint rather than summing catalogue prices.
+        # profile endpoint rather than summing catalogue prices. Order line
+        # prices are stored in the order's currency, so each line is converted
+        # back to USD before summing — otherwise a non-USD customer's LTV would
+        # be inflated by the currency multiplier and break every USD-based
+        # segment threshold (high_value > 500, bargain_hunter < 30, ...).
         lv_result = await self.db.execute(
-            select(OrderItem.quantity, OrderItem.unit_price)
+            select(Order.currency, OrderItem.quantity, OrderItem.unit_price)
             .select_from(OrderItem)
             .join(Order, Order.order_id == OrderItem.order_id)
             .where(Order.customer_id == customer_id)
         )
-        lifetime_value = sum((qty or 0) * (price or 0) for qty, price in lv_result.all())
+        lifetime_value = sum(
+            price_to_usd((qty or 0) * (price or 0), order_currency)
+            for order_currency, qty, price in lv_result.all()
+        )
 
         purchase_product_ids = [ev.product_id for ev in purchase_events if ev.product_id]
 
@@ -477,6 +485,57 @@ class OfferEngine:
             })
 
         return items
+
+    async def get_checkout_discount(
+        self,
+        customer_id: str,
+        currency: str,
+        subtotal: float,
+    ) -> dict | None:
+        """
+        Pick the single best applicable offer for a checkout subtotal.
+
+        Used by the order endpoint so the discount a customer sees on their
+        offers panel is the one actually applied at checkout. Returns
+        ``None`` when the customer has no assigned offer whose minimum
+        purchase threshold is met.
+
+        The returned ``discount_amount`` (and the ``subtotal`` it is compared
+        against) are in ``currency`` — min_purchase thresholds are stored in
+        USD, so they are converted to ``currency`` before comparison. The best
+        offer is the one yielding the largest discount; a no-op (free-shipping
+        placeholder) offer is skipped.
+        """
+        offers = await self.get_personalised_offers_for_customer(customer_id)
+        if not offers:
+            return None
+
+        best: dict | None = None
+        for offer in offers:
+            min_purchase_local = convert_price(offer.get("min_purchase", 0) or 0, currency)[0]
+            if subtotal < min_purchase_local:
+                continue
+            if offer["discount_type"] == "percentage":
+                pct = offer.get("discount_percentage") or offer.get("discount_value") or 0.0
+                discount = round(subtotal * pct / 100.0, 2)
+            else:
+                # Fixed-amount offers store their value in USD — convert to the
+                # order currency so the applied discount matches display.
+                discount = round(convert_price(offer.get("discount_value", 0) or 0, currency)[0], 2)
+            if discount <= 0:
+                continue
+            discount = min(discount, subtotal)
+            if best is None or discount > best["discount_amount"]:
+                best = {
+                    "offer_id": offer["offer_id"],
+                    "title": offer["title"],
+                    "discount_type": offer["discount_type"],
+                    "discount_percentage": offer.get("discount_percentage"),
+                    "discount_value": offer.get("discount_value"),
+                    "min_purchase": offer.get("min_purchase", 0),
+                    "discount_amount": discount,
+                }
+        return best
 
     async def _get_category_preferences(self, customer_id: str) -> list[str]:
         """Fetch stored category preferences for a customer."""

@@ -94,18 +94,36 @@ _ADDITIVE_CUSTOMER_COLUMNS = [
     ("forgotten_at", "forgotten_at DATETIME", "forgotten_at TIMESTAMP"),
 ]
 
+# Additive columns for the orders table (offer application at checkout).
+_ADDITIVE_ORDER_COLUMNS = [
+    ("applied_offer_id", "applied_offer_id VARCHAR(36)", "applied_offer_id VARCHAR(36)"),
+    (
+        "discount_amount",
+        "discount_amount FLOAT DEFAULT 0.0 NOT NULL",
+        "discount_amount DOUBLE PRECISION DEFAULT 0.0 NOT NULL",
+    ),
+]
+
 
 async def _ensure_columns(conn) -> None:
     """Add columns that may be missing on pre-existing databases (additive only)."""
     is_sqlite = _is_sqlite(settings.DATABASE_URL)
-    cols = await conn.run_sync(_existing_columns, "customers")
-    if cols is None:
-        return
-    for name, sqlite_ddl, pg_ddl in _ADDITIVE_CUSTOMER_COLUMNS:
-        if name in cols:
-            continue
-        ddl = sqlite_ddl if is_sqlite else pg_ddl
-        await conn.execute(sa_text(f"ALTER TABLE customers ADD COLUMN {ddl}"))
+
+    customer_cols = await conn.run_sync(_existing_columns, "customers")
+    if customer_cols is not None:
+        for name, sqlite_ddl, pg_ddl in _ADDITIVE_CUSTOMER_COLUMNS:
+            if name in customer_cols:
+                continue
+            ddl = sqlite_ddl if is_sqlite else pg_ddl
+            await conn.execute(sa_text(f"ALTER TABLE customers ADD COLUMN {ddl}"))
+
+    order_cols = await conn.run_sync(_existing_columns, "orders")
+    if order_cols is not None:
+        for name, sqlite_ddl, pg_ddl in _ADDITIVE_ORDER_COLUMNS:
+            if name in order_cols:
+                continue
+            ddl = sqlite_ddl if is_sqlite else pg_ddl
+            await conn.execute(sa_text(f"ALTER TABLE orders ADD COLUMN {ddl}"))
 
 
 def _existing_columns(conn, table: str) -> set[str] | None:

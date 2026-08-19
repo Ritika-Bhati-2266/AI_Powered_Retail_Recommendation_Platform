@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache import cache_delete
-from app.currency import get_available_currencies
+from app.currency import get_available_currencies, price_to_usd
 from app.database import get_db
 from app.models import (
     ConsentLog,
@@ -556,14 +556,20 @@ async def _compute_customer_metrics(customer_id: str, db: AsyncSession) -> Custo
     last_event_time = sorted_events[0].event_timestamp if sorted_events else now
     days_since_last = (now - last_event_time).days if last_event_time else 0
 
-    # Lifetime value (true total spent = sum of quantity weighted order line totals)
+    # Lifetime value (true total spent, normalised to USD). Order line-item
+    # prices are stored in the order's display currency, so each line is
+    # converted back to USD before summing — same USD basis as the segment
+    # engine (offers.py) so the two metric computations can never disagree.
     lv_result = await db.execute(
-        select(OrderItem.quantity, OrderItem.unit_price)
+        select(Order.currency, OrderItem.quantity, OrderItem.unit_price)
         .select_from(OrderItem)
         .join(Order, Order.order_id == OrderItem.order_id)
         .where(Order.customer_id == customer_id)
     )
-    lifetime_value = sum((qty or 0) * (price or 0) for qty, price in lv_result.all())
+    lifetime_value = sum(
+        price_to_usd((qty or 0) * (price or 0), order_currency)
+        for order_currency, qty, price in lv_result.all()
+    )
 
     # Preferred category (by most viewed/purchased)
     category_counts = {}

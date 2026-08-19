@@ -34,7 +34,7 @@ import { apiClient, tokenStore } from '../api/client';
 import ProductSearch from './ProductSearch';
 import PrivacyModal from './PrivacyModal';
 import { formatPrice } from '../utils/formatPrice';
-import type { CustomerFull, Recommendation, Product, Order } from '../types';
+import type { CustomerFull, Recommendation, Product, Order, Offer } from '../types';
 
 const CATEGORY_ICONS: Record<string, typeof Smartphone> = {
   Electronics: Smartphone,
@@ -288,9 +288,27 @@ function ProductDetailModal({ product, onClose, onAddToCart, onWishlist, isWishl
   );
 }
 
-function CartPanel({ items, onClose, onRemove, onCheckout, submitting = false }: { items: Map<string, { product: Product | Recommendation; quantity: number }>; onClose: () => void; onRemove: (productId: string) => void; onCheckout: () => void; submitting?: boolean; }) {
+function computeBestDiscount(offers: Offer[], subtotal: number): { amount: number; pct: number; title: string } | null {
+  let best: { amount: number; pct: number; title: string } | null = null;
+  for (const offer of offers) {
+    const minPurchase = offer.min_purchase ?? 0;
+    if (subtotal < minPurchase) continue;
+    const pct = offer.discount_percentage ?? offer.discount_value ?? 0;
+    if (pct <= 0) continue;
+    const amount = Math.round(subtotal * pct) / 100;
+    if (amount <= 0) continue;
+    if (!best || amount > best.amount) {
+      best = { amount: Math.min(amount, subtotal), pct, title: offer.title };
+    }
+  }
+  return best;
+}
+
+function CartPanel({ items, offers, onClose, onRemove, onCheckout, submitting = false }: { items: Map<string, { product: Product | Recommendation; quantity: number }>; offers: Offer[]; onClose: () => void; onRemove: (productId: string) => void; onCheckout: () => void; submitting?: boolean; }) {
   const itemArray = Array.from(items.values());
-  const total = itemArray.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const subtotal = itemArray.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const bestDiscount = useMemo(() => computeBestDiscount(offers, subtotal), [offers, subtotal]);
+  const total = Math.max(0, subtotal - (bestDiscount?.amount ?? 0));
 
   return (
     <div
@@ -339,6 +357,21 @@ function CartPanel({ items, onClose, onRemove, onCheckout, submitting = false }:
 
         {itemArray.length > 0 && (
           <div className="border-t border-zinc-800 px-5 py-4 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-zinc-400">Subtotal</span>
+              <span className="text-zinc-200 font-medium">{formatPrice(subtotal, itemArray[0]?.product.symbol)}</span>
+            </div>
+            {bestDiscount && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-zinc-400">
+                  Discount{' '}
+                  <span className="text-emerald-400 text-xs font-semibold">
+                    ({bestDiscount.title} · {bestDiscount.pct}% OFF)
+                  </span>
+                </span>
+                <span className="text-emerald-400 font-semibold">−{formatPrice(bestDiscount.amount, itemArray[0]?.product.symbol)}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between text-sm">
               <span className="text-zinc-400">Total</span>
               <span className="text-lg font-bold text-purple-400">{formatPrice(total, itemArray[0]?.product.symbol)}</span>
@@ -477,6 +510,12 @@ function OrderHistoryModal({ orders, symbolFor, onClose, loading, error }: { ord
                 <span className="text-sm text-zinc-400">Total</span>
                 <span className="text-base font-bold text-purple-400">{formatPrice(order.total_amount, symbolFor(order.currency))}</span>
               </div>
+              {order.discount_amount != null && order.discount_amount > 0 && (
+                <div className="flex items-center justify-between text-xs text-emerald-400 pt-1">
+                  <span className="text-zinc-500">Discount applied</span>
+                  <span>−{formatPrice(order.discount_amount, symbolFor(order.currency))}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -525,6 +564,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
 
   const [selectedProduct, setSelectedProduct] = useState<Product | Recommendation | null>(null);
   const [cartItems, setCartItems] = useState<Map<string, { product: Product | Recommendation; quantity: number }>>(new Map());
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [wishlistItems, setWishlistItems] = useState<Set<string>>(new Set());
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
   const [showWishlist, setShowWishlist] = useState(false);
@@ -663,6 +703,16 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   useEffect(() => {
     apiClient.getCurrencies().then(setCurrencies).catch(() => {});
   }, []);
+
+  // Load the customer's active offers (consent-gated) so the cart checkout
+  // summary can show exactly which discount will be applied.
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.getOffers(customer.customer_id)
+      .then((data) => { if (!cancelled) setOffers(data); })
+      .catch(() => { if (!cancelled) setOffers([]); });
+    return () => { cancelled = true; };
+  }, [customer.customer_id]);
 
   const handleCurrencyChange = useCallback(async (newCurrency: string) => {
     if (newCurrency === customer.currency) return;
@@ -1099,6 +1149,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
       {showCart && (
         <CartPanel
           items={cartItems}
+          offers={offers}
           onClose={() => setShowCart(false)}
           onRemove={handleRemoveFromCart}
           onCheckout={handleCheckout}

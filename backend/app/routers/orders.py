@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.currency import convert_price
 from app.database import get_db
 from app.models import Customer, Event, Order, OrderItem, Product
+from app.offers import OfferEngine
 from app.schemas import OrderCreate, OrderItemOut, OrderOut
 from app.security import require_owner
 from app.utils import utcnow
@@ -34,6 +35,8 @@ async def _order_out(db: AsyncSession, order: Order) -> OrderOut:
         customer_id=order.customer_id,
         total_amount=order.total_amount,
         currency=order.currency,
+        applied_offer_id=order.applied_offer_id,
+        discount_amount=order.discount_amount or 0.0,
         status=order.status,
         shipping_name=order.shipping_name,
         shipping_address=order.shipping_address,
@@ -60,9 +63,11 @@ async def place_order(
         db: AsyncSession = Depends(get_db),
     ):
     """Place an order from cart line items. Prices are computed server-side
-    from the actual product prices (client-sent prices are ignored). Also
-    emits a `purchase` event per line item so it feeds the recommender and
-    segmentation systems."""
+    from the actual product prices (client-sent prices are ignored). Any
+    assigned offer whose minimum-purchase threshold is met is applied to the
+    subtotal before the final total is stored, so the discount a customer sees
+    is the discount they actually get. Also emits a `purchase` event per line
+    item so it feeds the recommender and segmentation systems."""
     cust_result = await db.execute(
         select(Customer).where(Customer.customer_id == customer_id)
     )
@@ -77,6 +82,8 @@ async def place_order(
         customer_id=customer_id,
         total_amount=0.0,
         currency=currency,
+        applied_offer_id=None,
+        discount_amount=0.0,
         status="placed",
         shipping_name=payload.shipping_name,
         shipping_address=payload.shipping_address,
@@ -84,7 +91,11 @@ async def place_order(
     )
     db.add(order)
 
-    total = 0.0
+    # Resolve products and compute server-side subtotals (client prices are
+    # ignored). Line snapshots are collected first so the offer discount below
+    # is computed against the customer's pre-purchase behaviour metrics.
+    lines = []
+    subtotal_total = 0.0
     for line in payload.items:
         prod_result = await db.execute(
             select(Product).where(Product.product_id == line.product_id)
@@ -95,14 +106,24 @@ async def place_order(
 
         unit_price, _, _ = convert_price(product.price, currency)
         subtotal = round(unit_price * line.quantity, 2)
-        total += subtotal
+        subtotal_total += subtotal
+        lines.append((product, unit_price, line.quantity, subtotal))
 
+    # Apply the best applicable assigned offer (min-purchase gated). Both the
+    # subtotal and discount are in the customer's display currency, so the
+    # stored total matches what the customer is shown.
+    discount = await OfferEngine(db).get_checkout_discount(customer_id, currency, subtotal_total)
+    if discount:
+        order.applied_offer_id = discount["offer_id"]
+        order.discount_amount = discount["discount_amount"]
+
+    for product, unit_price, quantity, subtotal in lines:
         db.add(OrderItem(
             order_item_id=str(uuid.uuid4()),
             order_id=order.order_id,
             product_id=product.product_id,
             product_name_snapshot=product.name,
-            quantity=line.quantity,
+            quantity=quantity,
             unit_price=unit_price,
             subtotal=subtotal,
         ))
@@ -120,7 +141,7 @@ async def place_order(
                 event_timestamp=now,
             ))
 
-    order.total_amount = round(total, 2)
+    order.total_amount = round(subtotal_total - (order.discount_amount or 0.0), 2)
     await db.commit()
     await db.refresh(order)
 

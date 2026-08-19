@@ -39,6 +39,26 @@ def convert_price(price_usd: float, target_currency: str | None = None) -> tuple
     return converted, target, config["symbol"]
 
 
+def price_to_usd(amount: float, source_currency: str | None = None) -> float:
+    """Convert an amount stored in a local currency back to USD.
+
+    Orders store line-item prices in the customer's display currency (see
+    ``orders.place_order``), while every business metric — LTV, segment
+    thresholds, personalised discount rules — is defined in USD. This is the
+    reverse of :func:`convert_price`: it unwraps the currency multiplier so
+    behavioural metrics are always computed in USD regardless of the currency
+    the order was placed in (otherwise an INR customer's LTV would be inflated
+    ~83x and skew segment/discount logic).
+    """
+    if not amount:
+        return 0.0
+    source = source_currency or DEFAULT_CURRENCY
+    config = CURRENCY_CONFIG.get(source)
+    if not config or config["rate_to_usd"] <= 0:
+        return amount
+    return amount / config["rate_to_usd"]
+
+
 def get_available_currencies() -> dict[str, str]:
     """Return dict of currency code -> symbol for the selector UI."""
     return {code: cfg["symbol"] for code, cfg in CURRENCY_CONFIG.items()}

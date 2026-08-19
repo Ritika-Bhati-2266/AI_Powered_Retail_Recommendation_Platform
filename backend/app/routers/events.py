@@ -31,6 +31,17 @@ async def ingest_event(
             detail="Access denied: you can only submit events for your own account.",
         )
 
+    # Defense-in-depth: `purchase` is already rejected at schema validation
+    # (EventCreate.event_type is a strict Literal whitelist that excludes it).
+    # This guard exists so the invariant survives any future schema loosening:
+    # purchase events are created exclusively by the server during order
+    # placement (routers/orders.py) and clients can never emit them directly.
+    if event_data.event_type == "purchase":
+        raise HTTPException(
+            status_code=400,
+            detail="Purchase events cannot be submitted directly.",
+        )
+
     # Validate customer exists
     customer = await db.execute(
         select(Customer).where(Customer.customer_id == event_data.customer_id)

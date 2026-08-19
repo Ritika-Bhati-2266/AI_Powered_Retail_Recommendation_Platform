@@ -2630,10 +2630,17 @@ async def ensure_demo_passwords(db: AsyncSession) -> None:
     seeded admin) have a NULL password_hash. To keep the demo usable we assign
     them the shared demo password. Real accounts created via signup always have
     their own password and are unaffected.
+
+    Privacy guard: accounts that have exercised their right to forget
+    (``forgotten_at`` set) are NEVER backfilled. Re-assigning a password would
+    resurrect a deleted account that a customer explicitly erased.
     """
     demo_hash = hash_password(settings.DEMO_PASSWORD, rounds=10)
     result = await db.execute(
-        select(Customer).where(Customer.password_hash.is_(None))
+        select(Customer).where(
+            Customer.password_hash.is_(None),
+            Customer.forgotten_at.is_(None),
+        )
     )
     pending = result.scalars().all()
     for c in pending:
