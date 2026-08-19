@@ -82,7 +82,7 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 - **Startup guards**: in production, the app fails closed if `SECRET_KEY` is missing or falls back to the dev default, and warns loudly if `DEMO_PASSWORD` is left at the seeded default
 
 ### 6. Live Demo Mode
-- Browse the **full live product catalog** (760 products) with **no signup** — the demo loads real data from the public product APIs, no mock/hardcoded products
+- Browse the **full live product catalog** (760 products) with **no signup** — the demo loads the same backend-seeded catalog the full app uses. There is no separate mock demo data path; the catalog itself is server-generated for this demo/prototype (`backend/app/seed_data.py`) rather than pulled from a third-party product API.
 - Instant client-side search across product name, brand, and category
 - Open an interactive product-detail modal from any card
 - See the same UI and interaction patterns as the full platform
