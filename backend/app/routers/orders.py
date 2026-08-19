@@ -7,12 +7,12 @@ GET  /api/customers/{customer_id}/orders/{order_id} -- order detail
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.currency import convert_price
 from app.database import get_db
-from app.models import Customer, Event, Order, OrderItem, Product
+from app.models import Customer, CustomerOffer, Event, Order, OrderItem, Product
 from app.offers import OfferEngine
 from app.schemas import OrderCreate, OrderItemOut, OrderOut
 from app.security import require_owner
@@ -111,11 +111,28 @@ async def place_order(
 
     # Apply the best applicable assigned offer (min-purchase gated). Both the
     # subtotal and discount are in the customer's display currency, so the
-    # stored total matches what the customer is shown.
-    discount = await OfferEngine(db).get_checkout_discount(customer_id, currency, subtotal_total)
+    # stored total matches what the customer is shown. Personalisation (offer
+    # assignment + per-customer discount %) is consent-gated: a customer who
+    # has withdrawn consent gets no discount, even if a stale assignment row
+    # survives.
+    discount = None
+    if customer.consent_given:
+        discount = await OfferEngine(db).get_checkout_discount(customer_id, currency, subtotal_total)
     if discount:
         order.applied_offer_id = discount["offer_id"]
         order.discount_amount = discount["discount_amount"]
+        # One-time-use: consume the applied offer so it can't be re-applied to
+        # later orders (a "Welcome 15% Off" is a first-purchase offer, not a
+        # recurring coupon).
+        await db.execute(
+            update(CustomerOffer)
+            .where(
+                CustomerOffer.customer_id == customer_id,
+                CustomerOffer.offer_id == discount["offer_id"],
+                CustomerOffer.used_at.is_(None),
+            )
+            .values(used_at=now)
+        )
 
     for product, unit_price, quantity, subtotal in lines:
         db.add(OrderItem(

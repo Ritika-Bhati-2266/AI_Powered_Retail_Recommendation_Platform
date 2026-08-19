@@ -13,9 +13,23 @@ from app.models import Customer
 from app.schemas import ProductSearchResult
 
 
+def convert_original_price(original_price: float | None, currency: str) -> float | None:
+    """Convert a USD original/strike-through price into ``currency``.
+
+    Mirrors how ``price`` is converted so both fields render on the same scale
+    with the same currency symbol — otherwise a non-USD customer sees a USD
+    original price next to a converted price and the strike-through discount is
+    never correct. ``None`` passes through unchanged.
+    """
+    if original_price is None:
+        return None
+    return convert_price(original_price, currency)[0]
+
+
 def serialize_product(product, currency: str = "USD") -> ProductSearchResult:
     """Convert a Product ORM object into its API response shape, converting the
-    price into the given customer currency."""
+    price (and the original/strike-through price) into the given customer
+    currency."""
     converted_price, cur, sym = convert_price(product.price, currency)
     return ProductSearchResult(
         product_id=product.product_id,
@@ -29,7 +43,7 @@ def serialize_product(product, currency: str = "USD") -> ProductSearchResult:
         image_url=product.image_url or "",
         rating=product.rating,
         discount_percent=product.discount_percent,
-        original_price=product.original_price,
+        original_price=convert_original_price(product.original_price, currency),
     )
 
 

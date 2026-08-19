@@ -705,14 +705,16 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   }, []);
 
   // Load the customer's active offers (consent-gated) so the cart checkout
-  // summary can show exactly which discount will be applied.
+  // summary can show exactly which discount will be applied. Re-runs whenever
+  // consent changes so a revoke clears any cached offer/discount from the cart
+  // immediately and a re-grant reloads the re-assigned offers.
   useEffect(() => {
     let cancelled = false;
     apiClient.getOffers(customer.customer_id)
       .then((data) => { if (!cancelled) setOffers(data); })
       .catch(() => { if (!cancelled) setOffers([]); });
     return () => { cancelled = true; };
-  }, [customer.customer_id]);
+  }, [customer.customer_id, customer.consent_status]);
 
   const handleCurrencyChange = useCallback(async (newCurrency: string) => {
     if (newCurrency === customer.currency) return;
@@ -768,6 +770,9 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
       setCustomer(updated);
       setRecommendations([]);
       if (!target) {
+        // Personalisation is off: clear any cached offers so no stale
+        // discount shows in the cart summary.
+        setOffers([]);
         showToast('Consent revoked. Personalisation has been turned off.', 'success');
       } else {
         showToast('Consent granted. Personalisation is now enabled.', 'success');

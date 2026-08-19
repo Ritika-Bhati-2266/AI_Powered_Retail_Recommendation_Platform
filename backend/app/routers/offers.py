@@ -45,8 +45,11 @@ async def get_customer_offers(
 
     # 3. Return personalised offers with currency conversion. Every offer gets a
     #    customer-specific discount percentage + reason computed from behaviour.
+    #    Only un-consumed offers are shown (used_at unset): a one-time-use offer
+    #    that was already applied at checkout must vanish so the cart summary
+    #    and checkout never disagree about the discount.
     offer_engine = OfferEngine(db)
-    offers = await offer_engine.get_personalised_offers_for_customer(customer_id)
+    offers = await offer_engine.get_personalised_offers_for_customer(customer_id, only_unused=True)
 
     result_list = []
     for offer in offers:

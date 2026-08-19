@@ -7,7 +7,7 @@ POST /api/customers
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +23,6 @@ from app.models import (
     Event,
     Offer,
     Order,
-    OrderItem,
     Product,
     Recommendation,
 )
@@ -278,6 +277,48 @@ async def update_customer_settings(
             action="granted" if payload.consent_given else "revoked",
             dp_act="GDPR",
         )
+        if payload.consent_given:
+            # Re-enabling consent restores personalisation: re-evaluate the
+            # segment set and re-assign any matching active offers so the
+            # customer isn't stuck without offers until an admin re-runs
+            # assign-offers.
+            from app.offers import OfferEngine
+            engine = OfferEngine(db)
+            await engine.assign_segments(customer_id)
+            segment_result = await db.execute(
+                select(CustomerSegment.segment).where(
+                    CustomerSegment.customer_id == customer_id
+                )
+            )
+            segment_names = [row[0] for row in segment_result.all()]
+            now = utcnow()
+            if segment_names:
+                offers_result = await db.execute(
+                    select(Offer).where(
+                        Offer.segment.in_(segment_names),
+                        Offer.is_active,
+                        Offer.valid_from <= now,
+                        Offer.valid_until >= now,
+                    )
+                )
+                for offer in offers_result.scalars().all():
+                    db.add(CustomerOffer(
+                        customer_id=customer_id,
+                        offer_id=offer.offer_id,
+                        assigned_at=now,
+                    ))
+        else:
+            # Revocation purges all personalisation state so no stale
+            # segment/offer rows survive to keep serving behavioural targeting
+            # (the right-to-forget path already does this; a plain revoke must
+            # too — otherwise checkout could still apply a stale discount while
+            # the UI claims personalisation is off).
+            await db.execute(
+                delete(CustomerSegment).where(CustomerSegment.customer_id == customer_id)
+            )
+            await db.execute(
+                delete(CustomerOffer).where(CustomerOffer.customer_id == customer_id)
+            )
         await cache_delete(f"recs:{customer_id}")
 
     await db.commit()
@@ -524,8 +565,36 @@ async def _compute_customer_metrics(customer_id: str, db: AsyncSession) -> Custo
     )
     events = result.scalars().all()
 
+    # Purchase facts come from the orders table (server-authoritative) rather
+    # than purchase events — a purchase event is emitted per line item, so
+    # counting those events would report line items, not orders.
+    order_count_result = await db.execute(
+        select(func.count(Order.order_id)).where(Order.customer_id == customer_id)
+    )
+    total_purchases = order_count_result.scalar() or 0
+
+    # Lifetime value (NET spend, normalised to USD). Each order's total_amount
+    # already has the applied checkout discount subtracted, so summing order
+    # totals (converted back to USD from the order's display currency) reports
+    # what the customer actually paid — same USD basis as the segment engine
+    # (offers.py) so the two metric computations can never disagree.
+    lv_result = await db.execute(
+        select(Order.currency, Order.total_amount)
+        .where(Order.customer_id == customer_id)
+    )
+    lifetime_value = round(
+        sum(
+            price_to_usd(total_amount or 0.0, currency)
+            for currency, total_amount in lv_result.all()
+        ),
+        2,
+    )
+
     if not events:
-        return CustomerMetrics()
+        return CustomerMetrics(
+            total_purchases=total_purchases,
+            lifetime_value=lifetime_value,
+        )
 
     # Count by type
     event_types = {}
@@ -533,7 +602,6 @@ async def _compute_customer_metrics(customer_id: str, db: AsyncSession) -> Custo
         event_types[ev.event_type] = event_types.get(ev.event_type, 0) + 1
 
     total_views = event_types.get("page_view", 0)
-    total_purchases = event_types.get("purchase", 0)
     total_cart_events = event_types.get("add_to_cart", 0) + event_types.get("remove_from_cart", 0)
     total_email_engagement = event_types.get("email_open", 0) + event_types.get("email_click", 0)
 
@@ -555,21 +623,6 @@ async def _compute_customer_metrics(customer_id: str, db: AsyncSession) -> Custo
     sorted_events = sorted(events, key=lambda e: e.event_timestamp or now, reverse=True)
     last_event_time = sorted_events[0].event_timestamp if sorted_events else now
     days_since_last = (now - last_event_time).days if last_event_time else 0
-
-    # Lifetime value (true total spent, normalised to USD). Order line-item
-    # prices are stored in the order's display currency, so each line is
-    # converted back to USD before summing — same USD basis as the segment
-    # engine (offers.py) so the two metric computations can never disagree.
-    lv_result = await db.execute(
-        select(Order.currency, OrderItem.quantity, OrderItem.unit_price)
-        .select_from(OrderItem)
-        .join(Order, Order.order_id == OrderItem.order_id)
-        .where(Order.customer_id == customer_id)
-    )
-    lifetime_value = sum(
-        price_to_usd((qty or 0) * (price or 0), order_currency)
-        for order_currency, qty, price in lv_result.all()
-    )
 
     # Preferred category (by most viewed/purchased)
     category_counts = {}
@@ -609,7 +662,7 @@ async def _compute_customer_metrics(customer_id: str, db: AsyncSession) -> Custo
         total_email_engagement=total_email_engagement,
         avg_session_duration_minutes=avg_session_duration,
         days_since_last_activity=abs(days_since_last),
-        lifetime_value=round(lifetime_value, 2),
+        lifetime_value=lifetime_value,
         preferred_category=preferred_category,
         preferred_price_tier=preferred_price_tier,
     )

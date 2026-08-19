@@ -22,6 +22,7 @@ from app.models import (
 from app.privacy import ConsentService
 from app.schemas import RecommendationOut
 from app.security import require_owner
+from app.serializers import convert_original_price
 from app.utils import utcnow
 
 router = APIRouter(tags=["recommendations"])
@@ -52,6 +53,8 @@ def _convert_rec_price(rec: dict, currency: str) -> dict:
     rec["price"] = converted_price
     rec["currency"] = cur
     rec["symbol"] = sym
+    if "original_price" in rec:
+        rec["original_price"] = convert_original_price(rec.get("original_price"), currency)
     return rec
 
 
@@ -130,7 +133,7 @@ async def get_recommendations(
                         image_url=p.image_url,
                         rating=p.rating,
                         discount_percent=p.discount_percent,
-                        original_price=p.original_price,
+                        original_price=convert_original_price(p.original_price, customer_currency),
                         score=1.0 / (idx + 1),
                         reason_code="cold_start",
                         reason_text=f"Based on your interest in {p.category}",
@@ -172,7 +175,7 @@ async def get_recommendations(
                         image_url=product.image_url,
                         rating=product.rating,
                         discount_percent=product.discount_percent,
-                        original_price=product.original_price,
+                        original_price=convert_original_price(product.original_price, customer_currency),
                         score=rec.score,
                         reason_code=rec.reason_code or "top_pick",
                         reason_text=rec.reason_text or "Recommended for you",
@@ -283,7 +286,7 @@ async def get_recommendations(
                 image_url=p.image_url,
                 rating=p.rating,
                 discount_percent=p.discount_percent,
-                original_price=p.original_price,
+                original_price=convert_original_price(p.original_price, customer_currency),
                 score=1.0 / (idx + 1),
                 reason_code="trending",
                 reason_text="Popular item right now",

@@ -139,6 +139,10 @@ class CustomerOffer(Base):
     customer_id = Column(String(36), ForeignKey("customers.customer_id"), nullable=False, primary_key=True)
     offer_id = Column(String(36), ForeignKey("offers.offer_id"), nullable=False, primary_key=True)
     assigned_at = Column(DateTime, default=utcnow, nullable=False)
+    # Consumed at checkout: once non-NULL the offer can no longer be applied to
+    # later orders, so first-purchase offers stay one-time-use instead of being
+    # re-applied until the next admin-triggered assign-offers run.
+    used_at = Column(DateTime, nullable=True, index=True)
 
     customer = relationship("Customer", back_populates="customer_offers")
     offer = relationship("Offer", back_populates="customer_offers")

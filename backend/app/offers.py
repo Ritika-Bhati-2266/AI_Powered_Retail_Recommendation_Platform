@@ -245,14 +245,41 @@ class OfferEngine:
         events = result.scalars().all()
 
         total_events = len(events)
+
+        # Purchase facts come from the orders table, not behaviour events.
+        # Orders are server-authoritative and a purchase event is emitted per
+        # line item at checkout, so counting events would inflate purchase_count
+        # to "total line items" instead of "total orders" and skew the
+        # high_value / bargain_hunter / brand_loyalist thresholds.
+        order_result = await self.db.execute(
+            select(Order.order_id, Order.currency, Order.total_amount)
+            .where(Order.customer_id == customer_id)
+        )
+        order_rows = order_result.all()
+        purchase_count = len({row.order_id for row in order_rows})
+
+        # Lifetime value = NET spend: each order's total_amount already has the
+        # applied checkout discount subtracted. Order totals are stored in the
+        # order's display currency, so each is converted back to USD before
+        # summing — otherwise a non-USD customer's LTV would be inflated by the
+        # currency multiplier and break every USD-based segment threshold
+        # (high_value > 500, bargain_hunter < 30, ...).
+        lifetime_value = round(
+            sum(
+                price_to_usd(total_amount or 0.0, currency)
+                for _order_id, currency, total_amount in order_rows
+            ),
+            2,
+        )
+
         if total_events == 0:
             return {
                 "total_events": 0,
                 "total_views": 0,
-                "purchase_count": 0,
-                "purchase_events": 0,
+                "purchase_count": purchase_count,
+                "purchase_events": purchase_count,
                 "cart_events": 0,
-                "lifetime_value": 0.0,
+                "lifetime_value": lifetime_value,
                 "avg_price_purchased": 0.0,
                 "days_since_first_event": 999,
                 "days_since_last_activity": 999,
@@ -260,7 +287,6 @@ class OfferEngine:
                 "top_brand_pct": 0.0,
             }
 
-        purchase_events = [e for e in events if e.event_type == "purchase"]
         cart_events = [e for e in events if e.event_type in ("add_to_cart", "remove_from_cart")]
         view_events = [e for e in events if e.event_type == "page_view"]
 
@@ -275,25 +301,17 @@ class OfferEngine:
 
         events_30d = len([e for e in events if e.event_timestamp and e.event_timestamp >= thirty_days_ago])
 
-        # Lifetime value — true spend derived from order line-item snapshots
-        # (quantity × unit price), matching the value reported by the customer
-        # profile endpoint rather than summing catalogue prices. Order line
-        # prices are stored in the order's currency, so each line is converted
-        # back to USD before summing — otherwise a non-USD customer's LTV would
-        # be inflated by the currency multiplier and break every USD-based
-        # segment threshold (high_value > 500, bargain_hunter < 30, ...).
-        lv_result = await self.db.execute(
-            select(Order.currency, OrderItem.quantity, OrderItem.unit_price)
-            .select_from(OrderItem)
+        # Products actually purchased, from the order line-item snapshots
+        # (independent of behaviour events, which are consent-gated).
+        item_result = await self.db.execute(
+            select(OrderItem.product_id)
             .join(Order, Order.order_id == OrderItem.order_id)
-            .where(Order.customer_id == customer_id)
+            .where(
+                Order.customer_id == customer_id,
+                OrderItem.product_id.isnot(None),
+            )
         )
-        lifetime_value = sum(
-            price_to_usd((qty or 0) * (price or 0), order_currency)
-            for order_currency, qty, price in lv_result.all()
-        )
-
-        purchase_product_ids = [ev.product_id for ev in purchase_events if ev.product_id]
+        purchase_product_ids = [row[0] for row in item_result.all()]
 
         # Average price purchased (from the products actually purchased)
         avg_price = 0.0
@@ -323,8 +341,8 @@ class OfferEngine:
         return {
             "total_events": total_events,
             "total_views": len(view_events),
-            "purchase_count": len(purchase_events),
-            "purchase_events": len(purchase_events),
+            "purchase_count": purchase_count,
+            "purchase_events": purchase_count,
             "cart_events": len(cart_events),
             "lifetime_value": lifetime_value,
             "avg_price_purchased": avg_price,
@@ -417,23 +435,31 @@ class OfferEngine:
         logger.info(f"Assigned {assignments} offers to customers.")
         return assignments
 
-    async def get_offers_for_customer(self, customer_id: str) -> list[Offer]:
-        """Get active offers assigned to a specific customer."""
+    async def get_offers_for_customer(self, customer_id: str, only_unused: bool = False) -> list[Offer]:
+        """Get active offers assigned to a specific customer.
+
+        With ``only_unused=True`` the customer's already-consumed offers
+        (``used_at`` set at checkout) are excluded, so a one-time-use offer can
+        never be picked twice.
+        """
         now = utcnow()
+        conditions = [
+            CustomerOffer.customer_id == customer_id,
+            Offer.is_active,
+            Offer.valid_from <= now,
+            Offer.valid_until >= now,
+        ]
+        if only_unused:
+            conditions.append(CustomerOffer.used_at.is_(None))
         result = await self.db.execute(
             select(Offer)
             .join(CustomerOffer, CustomerOffer.offer_id == Offer.offer_id)
-            .where(
-                CustomerOffer.customer_id == customer_id,
-                Offer.is_active,
-                Offer.valid_from <= now,
-                Offer.valid_until >= now,
-            )
+            .where(*conditions)
             .order_by(Offer.valid_until.asc())
         )
         return list(result.scalars().all())
 
-    async def get_personalised_offers_for_customer(self, customer_id: str) -> list[dict]:
+    async def get_personalised_offers_for_customer(self, customer_id: str, only_unused: bool = False) -> list[dict]:
         """
         Personalised offer delivery: keep the predefined segment-based offer
         structure (titles + descriptions), but compute a customer-specific
@@ -442,7 +468,7 @@ class OfferEngine:
         clamped to [PERSONALISED_DISCOUNT_MIN, PERSONALISED_DISCOUNT_MAX]
         (5%–30%) plus a short human-readable `reason`.
         """
-        offers = await self.get_offers_for_customer(customer_id)
+        offers = await self.get_offers_for_customer(customer_id, only_unused=only_unused)
         if not offers:
             return []
 
@@ -505,8 +531,11 @@ class OfferEngine:
         USD, so they are converted to ``currency`` before comparison. The best
         offer is the one yielding the largest discount; a no-op (free-shipping
         placeholder) offer is skipped.
+
+        Only un-consumed offers (``used_at`` unset) are eligible, so a
+        one-time-use offer like the "Welcome 15% Off" is never applied twice.
         """
-        offers = await self.get_personalised_offers_for_customer(customer_id)
+        offers = await self.get_personalised_offers_for_customer(customer_id, only_unused=True)
         if not offers:
             return None
 
