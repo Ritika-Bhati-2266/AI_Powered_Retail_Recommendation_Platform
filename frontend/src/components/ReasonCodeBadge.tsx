@@ -27,6 +27,22 @@ const reasonCodeMap: Record<string, { label: string; className: string }> = {
     label: 'Top Pick',
     className: 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/40',
   },
+  svd_personalized: {
+    label: 'Personalized',
+    className: 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/40',
+  },
+  cold_start: {
+    label: 'Based on Interests',
+    className: 'bg-blue-900/40 text-blue-300 border border-blue-700/40',
+  },
+  cold_start_category_based: {
+    label: 'Based on Browsing',
+    className: 'bg-blue-900/40 text-blue-300 border border-blue-700/40',
+  },
+  trending: {
+    label: 'Trending',
+    className: 'bg-purple-900/40 text-purple-300 border border-purple-700/40',
+  },
   popular: {
     label: 'Popular',
     className: 'bg-zinc-700/40 text-zinc-300 border border-zinc-600/40',

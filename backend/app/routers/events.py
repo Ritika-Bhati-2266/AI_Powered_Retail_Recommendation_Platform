@@ -107,6 +107,15 @@ async def ingest_event(
     # background task (which opens its own session) is guaranteed to see it.
     await db.commit()
 
+    # Invalidate any cached recommendations for this customer so a fresh event
+    # immediately surfaces changed personalisation instead of a stale snapshot.
+    try:
+        from app.cache import cache_delete
+
+        await cache_delete(f"recs:{event_data.customer_id}")
+    except Exception:
+        pass
+
     # Re-evaluate the customer's segment membership now that their behaviour has
     # changed — but in the background so the ingest response returns immediately
     # instead of waiting on the metrics queries + segment writes. (Offers are

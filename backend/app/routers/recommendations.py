@@ -2,6 +2,7 @@
 GET /api/customers/{customer_id}/recommendations
 """
 import json
+import logging
 from datetime import timedelta
 
 import pandas as pd
@@ -24,6 +25,8 @@ from app.schemas import RecommendationOut
 from app.security import require_owner
 from app.serializers import convert_original_price
 from app.utils import utcnow
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["recommendations"])
 
@@ -137,8 +140,10 @@ async def get_recommendations(
                         score=1.0 / (idx + 1),
                         reason_code="cold_start",
                         reason_text=f"Based on your interest in {p.category}",
+                        source="cold_start",
                     ))
                 if result:
+                    logger.info("Customer %s: served signup-preference cold start (%d prefs).", customer_id, len(preferred_categories))
                     return _deduplicate_recommendations(result)
 
     # 6. Try model-based recommendations (only for customers with events)
@@ -179,6 +184,7 @@ async def get_recommendations(
                         score=rec.score,
                         reason_code=rec.reason_code or "top_pick",
                         reason_text=rec.reason_text or "Recommended for you",
+                        source="svd",
                     ))
             if recommendations:
                 deduped = _deduplicate_recommendations(recommendations)
@@ -186,6 +192,7 @@ async def get_recommendations(
                     await cache_set(cache_key, json.dumps([r.model_dump() for r in deduped], default=str), ttl=300)
                 except Exception:
                     pass
+                logger.info("Customer %s: served %d stored personalised recommendations.", customer_id, len(deduped))
                 return deduped
 
         # Fallback: use the in-memory model to generate live recommendations.
@@ -246,11 +253,62 @@ async def get_recommendations(
                     })
                     for r in model_recs
                 ]
+                sources = {getattr(r, "source", "svd") for r in live_recs}
+                logger.info(
+                    "Customer %s: served %d live model recommendations (source=%s).",
+                    customer_id, len(live_recs), sorted(sources) or ["svd"],
+                )
                 return _deduplicate_recommendations(live_recs)
+            logger.info("Customer %s: model produced no recommendations; trying behavior-aware cold start.", customer_id)
         except Exception as e:
-            # Log but fall through to trending
-            import logging
-            logging.getLogger(__name__).warning(f"Live recommendation failed: {e}")
+            logger.warning(f"Live recommendation failed for customer {customer_id}: {e}")
+
+    # 6.5 Behavior-aware cold start: the customer has events but no usable model
+    #     signal (model untrained/absent). Bias toward the categories the
+    #     customer actually browses, instead of a generic global "popular" list.
+    if customer_event_count > 0:
+        cold_categories = await _recent_category_interests(customer_id, db)
+        if cold_categories:
+            cold_start_products = await db.execute(
+                select(Product)
+                .where(Product.category.in_(cold_categories))
+                .order_by(Product.name)
+                .limit(20)
+            )
+            all_cold = cold_start_products.scalars().all()
+            if all_cold:
+                # Prefer products from the customer's top category first.
+                top_cat = cold_categories[0]
+                ranked = sorted(
+                    all_cold,
+                    key=lambda p: (0 if p.category == top_cat else 1, p.name),
+                )[:10]
+                result = []
+                for idx, p in enumerate(ranked):
+                    converted_price, cur, sym = convert_price(p.price, customer_currency)
+                    result.append(RecommendationOut(
+                        product_id=p.product_id,
+                        name=p.name,
+                        category=p.category or "",
+                        subcategory=p.subcategory,
+                        brand=p.brand,
+                        price=converted_price,
+                        currency=cur,
+                        symbol=sym,
+                        image_url=p.image_url,
+                        rating=p.rating,
+                        discount_percent=p.discount_percent,
+                        original_price=convert_original_price(p.original_price, customer_currency),
+                        score=1.0 / (idx + 1),
+                        reason_code="cold_start_category_based",
+                        reason_text=f"Based on your browsing in {p.category}",
+                        source="cold_start",
+                    ))
+                logger.info(
+                    "Customer %s: served behavior-aware category cold start (top category=%s).",
+                    customer_id, top_cat,
+                )
+                return _deduplicate_recommendations(result)
 
     # 7. Fallback: trending products (by view count in last 7 days)
     seven_days_ago = utcnow() - timedelta(days=7)
@@ -290,8 +348,49 @@ async def get_recommendations(
                 score=1.0 / (idx + 1),
                 reason_code="trending",
                 reason_text="Popular item right now",
+                source="popular",
             ))
+        logger.info("Customer %s: served global trending fallback.", customer_id)
         return _deduplicate_recommendations(result)
 
     # 8. Empty fallback
+    logger.info("Customer %s: no recommendations available.", customer_id)
     return []
+
+
+async def _recent_category_interests(customer_id: str, db: AsyncSession) -> list[str]:
+    """Top categories for a customer, weighted by their own behavioural events
+    (purchases > cart > wishlist > clicks > views), most-preferred first.
+
+    Serves the behavior-aware cold-start path when no model signal exists.
+    """
+    result = await db.execute(
+        select(Event.product_id, Event.event_type).where(
+            Event.customer_id == customer_id
+        )
+    )
+    rows = result.all()
+    pids = [r[0] for r in rows if r[0]]
+    if not pids:
+        return []
+
+    prod_result = await db.execute(
+        select(Product.product_id, Product.category).where(
+            Product.product_id.in_(pids)
+        )
+    )
+    prod_cat = {p.product_id: p.category for p in prod_result.all()}
+    weights = {
+        "purchase": 5.0,
+        "add_to_cart": 3.0,
+        "wishlist_add": 2.5,
+        "email_click": 2.0,
+        "page_view": 1.0,
+        "email_open": 0.5,
+    }
+    cat_counts: dict[str, float] = {}
+    for pid, etype in rows:
+        cat = prod_cat.get(pid)
+        if cat:
+            cat_counts[cat] = cat_counts.get(cat, 0.0) + weights.get(etype, 1.0)
+    return sorted(cat_counts, key=cat_counts.get, reverse=True)

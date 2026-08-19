@@ -41,6 +41,9 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 - **Hybrid scoring**: 70% collaborative filtering + 30% content-based similarity
 - **Weighted interactions**: Purchases (5x), cart adds (3x), wishlist (2.5x), email clicks (2x), page views (1x)
 - **Cold-start support**: New users get recommendations based on signup category preferences
+- **Live SVD projection for unknown customers**: a customer who joined *after* the last model snapshot (or has events not covered by it) is folded into the trained latent space at inference time by projecting their own interaction vector — so brand-new customers still get personalised collaborative + content recs instead of a generic popular list. There is **no silent fallback to global popularity for customers with behaviour**.
+- **Behavior-aware fallback**: if no model signal exists at all, recommendations are biased toward the categories the customer actually browses/buys (recent-event categories, weighted by event type) rather than a flat global "popular" list.
+- **Source flag on every response**: `source` reports *why* a recommendation was produced for debugging — `svd` (model matrix or live projection), `cold_start` (category-aware fallback), or `popular` (global last resort).
 - **Interpretable reason codes** — every recommendation explains why:
   - `purchased_category` — "You previously purchased Electronics items"
   - `viewed_category` — "You've been browsing Clothing"
@@ -49,7 +52,10 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
   - `wishlist_item` — "This item is on your wishlist"
   - `trending_in_segment` — "Popular among similar customers"
   - `top_pick` — "Recommended based on your browsing patterns"
-  - `cold_start` — "Based on your interest in [category]"
+  - `svd_personalized` — "Recommended based on your shopping history" (SVD-driven default)
+  - `cold_start_category_based` — "Based on your browsing in [category]" (behavior-aware fallback)
+  - `cold_start` — "Based on your interest in [category]" (signup preferences)
+  - `trending` / `popular` — global popularity, only for customers with no behavioural signal
 
 ### 2. Segment-Based Offer Engine
 - 8 behavioural segments with hardcoded business rules: `high_value`, `bargain_hunter`, `new_user`, `lapsed`, `cart_abandoner`, `brand_loyalist`, `window_shopper`, `power_user`

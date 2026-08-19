@@ -19,6 +19,18 @@ from sklearn.preprocessing import normalize
 
 logger = logging.getLogger(__name__)
 
+# Weight applied to each behavioural signal when building the user-item
+# interaction matrix (purchases dominate, passive views weight least).
+EVENT_WEIGHTS: dict[str, float] = {
+    "purchase": 5.0,
+    "add_to_cart": 3.0,
+    "wishlist_add": 2.5,
+    "email_click": 2.0,
+    "page_view": 1.0,
+    "email_open": 0.5,
+    "remove_from_cart": -1.0,
+}
+
 
 class RecommendationEngine:
     """Hybrid recommender using TruncatedSVD + content-based similarity."""
@@ -70,16 +82,6 @@ class RecommendationEngine:
         logger.info(f"Building matrix: {n_users} users x {n_items} items")
 
         # ── Build interaction matrix with weighted events (vectorized) ──
-        event_weights = {
-            "purchase": 5.0,
-            "add_to_cart": 3.0,
-            "wishlist_add": 2.5,
-            "email_click": 2.0,
-            "page_view": 1.0,
-            "email_open": 0.5,
-            "remove_from_cart": -1.0,
-        }
-
         valid = (
             events_df["customer_id"].isin(self._user_index)
             & events_df["product_id"].isin(self._item_index)
@@ -89,7 +91,7 @@ class RecommendationEngine:
         if len(sub) > 0:
             rows = sub["customer_id"].map(self._user_index).to_numpy()
             cols = sub["product_id"].map(self._item_index).to_numpy()
-            vals = sub["event_type"].map(event_weights).fillna(0.5).to_numpy(dtype=np.float32)
+            vals = sub["event_type"].map(EVENT_WEIGHTS).fillna(0.5).to_numpy(dtype=np.float32)
 
             mat = coo_matrix((vals, (rows, cols)), shape=(n_users, n_items), dtype=np.float32).tocsr()
         else:
@@ -179,27 +181,69 @@ class RecommendationEngine:
         events_df: pd.DataFrame | None = None,
         products_df: pd.DataFrame | None = None,
     ) -> list[dict]:
-        """Generate top-N hybrid recommendations."""
+        """Generate top-N hybrid recommendations.
+
+        Every returned dict carries a ``source`` flag so callers can tell the
+        provenance of the recommendation at a glance / for debugging:
+          - ``svd``       → drove by the trained factor matrices (either the
+                            customer's precomputed row OR a live projection of
+                            their own interaction vector into the SVD space).
+          - ``cold_start``→ behavior-aware fallback: biased toward the
+                            customer's own event categories (recent clicks).
+          - ``popular``   → pure global popularity, last resort (no signal).
+
+        Customers absent from the trained user matrix are NOT silently served
+        the generic popular list: their live interaction vector is projected
+        into the SVD latent space, so new/low-activity customers still get
+        personalised collaborative + content signals from their own behaviour.
+        """
         if not self._is_trained or self.svd is None:
-            logger.warning("Model not trained, returning fallback.")
-            return self._fallback_recommendations(n, events_df)
+            logger.warning("Model not trained, using behavior-aware fallback.")
+            return self._fallback_recommendations(n, events_df, customer_id, products_df)
 
-        if customer_id not in self._user_index:
-            logger.warning(f"Customer {customer_id} not found.")
-            return self._fallback_recommendations(n, events_df)
+        # Resolve this customer's behavioural signal.
+        if customer_id in self._user_index:
+            user_idx = self._user_index[customer_id]
+            interactions = self._interaction_matrix[user_idx].toarray().flatten()
+            user_vec = self._user_factors[user_idx]
+            signal_source = "model_matrix"
+        else:
+            interactions = self._build_user_interactions(customer_id, events_df)
+            if interactions is not None:
+                # Fold the customer's live behaviour into the trained latent
+                # space without retraining the model.
+                user_vec = self.svd.transform(interactions.reshape(1, -1)).flatten()
+                signal_source = "live_projection"
+            else:
+                interactions = None
+                signal_source = None
 
-        user_idx = self._user_index[customer_id]
-        user_vec = self._user_factors[user_idx]
+        if signal_source is None or interactions is None or not np.any(interactions != 0):
+            # No usable behavioural signal (in matrix or live) → category-aware
+            # cold start from the customer's own recent event categories, else
+            # global popularity as the absolute last resort.
+            logger.info(
+                "Customer %s has no behavioural signal for SVD; using category-aware cold start.",
+                customer_id,
+            )
+            return self._fallback_recommendations(n, events_df, customer_id, products_df)
+
+        if signal_source == "live_projection":
+            logger.info(
+                "Customer %s not in trained user index (%d users); projecting live "
+                "interaction vector for SVD personalisation.",
+                customer_id,
+                len(self._user_index),
+            )
 
         # Collaborative scores
         collab_scores = self._item_factors @ user_vec
 
-        # Content-based scores
-        user_interactions = self._interaction_matrix[user_idx].toarray().flatten()
-        interacted_items = np.where(user_interactions > 0)[0]
+        # Content-based scores from the customer's own interactions
+        interacted_items = np.where(interactions > 0)[0]
 
         if len(interacted_items) > 0:
-            weights = user_interactions[interacted_items]
+            weights = interactions[interacted_items]
             user_content_profile = np.average(
                 self._item_content_vectors[interacted_items],
                 axis=0,
@@ -243,7 +287,7 @@ class RecommendationEngine:
                     customer_id, product_id, events_df, products_df
                 )
             else:
-                rc, rt = "top_pick", "Recommended based on your browsing patterns"
+                rc, rt = "svd_personalized", "Recommended based on your shopping history"
 
             recommendations.append({
                 "product_id": product_id,
@@ -259,24 +303,107 @@ class RecommendationEngine:
                 "score": round(hscore, 4),
                 "reason_code": rc,
                 "reason_text": rt,
+                "source": "svd",
             })
 
         return recommendations
 
+    def _build_user_interactions(
+        self,
+        customer_id: str,
+        events_df: pd.DataFrame | None,
+    ) -> np.ndarray | None:
+        """Build a weighted log1p interaction vector (length = n_items) for a
+        customer from their LIVE events, mapped onto the trained item index.
+
+        Mirrors the preprocessing used in build_features so an SVD projection
+        is directly comparable to the trained factor matrices. Returns None if
+        the customer has no usable interactions (product in catalog).
+        """
+        if events_df is None or len(events_df) == 0:
+            return None
+        if not {"customer_id", "product_id", "event_type"}.issubset(events_df.columns):
+            return None
+
+        sub = events_df[
+            (events_df["customer_id"] == customer_id)
+            & (events_df["product_id"].notna())
+        ]
+        if len(sub) == 0:
+            return None
+
+        valid = sub["product_id"].isin(self._item_index)
+        sub = sub.loc[valid]
+        if len(sub) == 0:
+            return None
+
+        cols = sub["product_id"].map(self._item_index).to_numpy()
+        vals = sub["event_type"].map(EVENT_WEIGHTS).fillna(0.5).to_numpy(dtype=np.float32)
+
+        row = np.zeros(len(self._item_ids), dtype=np.float32)
+        for c, v in zip(cols, vals, strict=False):
+            row[c] += v
+        row = np.log1p(np.abs(row)) * np.sign(row)
+        return row
+
+    def _customer_category_interests(
+        self,
+        customer_id: str | None,
+        events_df: pd.DataFrame | None,
+        products_df: pd.DataFrame | None,
+    ) -> dict[str, float]:
+        """Summarise a customer's own recent behaviour into an ordered set of
+        category interests (weighted by event type). Empty dict when there is
+        no behavioural signal."""
+        if events_df is None or len(events_df) == 0 or customer_id is None:
+            return {}
+        sub = events_df[events_df["customer_id"] == customer_id]
+        if len(sub) == 0:
+            return {}
+
+        if (
+            products_df is not None
+            and len(products_df) > 0
+            and {"product_id", "category"}.issubset(products_df.columns)
+        ):
+            cat_map = products_df.set_index("product_id")["category"].to_dict()
+        else:
+            cat_map = {pid: info.get("category") for pid, info in self._product_details.items()}
+
+        interests: dict[str, float] = {}
+        for _, ev in sub.iterrows():
+            pid = ev.get("product_id")
+            if not pid:
+                continue
+            cat = cat_map.get(pid)
+            if not cat:
+                continue
+            w = EVENT_WEIGHTS.get(ev.get("event_type"), 0.5)
+            interests[cat] = interests.get(cat, 0.0) + max(w, 0.0)
+        return interests
+
     def _fallback_recommendations(
-        self, n: int = 10, events_df: pd.DataFrame | None = None
+        self,
+        n: int = 10,
+        events_df: pd.DataFrame | None = None,
+        customer_id: str | None = None,
+        products_df: pd.DataFrame | None = None,
     ) -> list[dict]:
         """
-        Return trending/popular items when the model is unavailable or the
-        customer is unknown (cold start).
+        Return recommendations when no model/matrix signal is available.
 
-        Ranked by actual interaction popularity (event count per product)
-        when events_df is available, falling back to price-descending only
-        if no event data is passed in at all.
+        Behavior-aware: when the customer has their own event history, the list
+        is biased toward the categories they actually browse / buy from
+        (reason_code ``cold_start_category_based``, source ``cold_start``),
+        ranked by real interaction popularity within those categories. Only
+        when there is NO behavioural signal at all does it degrade to pure
+        global popularity (reason_code ``popular``) — and to price-descending
+        order if no event data is passed in at all.
         """
         if not self._product_details:
             return []
 
+        counts: dict = {}
         if events_df is not None and len(events_df) > 0:
             counts = (
                 events_df["product_id"]
@@ -284,11 +411,15 @@ class RecommendationEngine:
                 .value_counts()
                 .to_dict()
             )
-        else:
-            counts = {}
+
+        interests = self._customer_category_interests(customer_id, events_df, products_df)
+        use_cold_start = bool(interests)
 
         scored = []
         for pid, details in self._product_details.items():
+            category = details.get("category", "")
+            if use_cold_start and category not in interests:
+                continue
             scored.append({
                 "product_id": pid,
                 **{k: details.get(k, "") for k in ["name", "category", "subcategory", "brand", "image_url"]},
@@ -297,11 +428,19 @@ class RecommendationEngine:
                 "discount_percent": details.get("discount_percent"),
                 "original_price": details.get("original_price"),
                 "score": 0.0,
-                "reason_code": "popular",
-                "reason_text": "Popular item",
+                "reason_code": "cold_start_category_based" if use_cold_start else "popular",
+                "reason_text": (
+                    f"Based on your browsing in {category}" if use_cold_start else "Popular item"
+                ),
+                "source": "cold_start" if use_cold_start else "popular",
             })
 
-        if counts:
+        if use_cold_start:
+            scored.sort(
+                key=lambda x: (interests.get(x["category"], 0.0), counts.get(x["product_id"], 0)),
+                reverse=True,
+            )
+        elif counts:
             scored.sort(key=lambda x: counts.get(x["product_id"], 0), reverse=True)
         else:
             scored.sort(key=lambda x: x["price"], reverse=True)

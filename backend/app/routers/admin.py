@@ -12,10 +12,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cache import cache_delete
+from app.config import settings
 from app.database import async_session_factory, get_db
 from app.models import Customer, Event, Product, Recommendation
 from app.offers import OfferEngine
 from app.privacy import ConsentService
+from app.recommender import RecommendationEngine
 from app.schemas import AdminActionOut, AssignOffersOut, SegmentCountOut, SystemStatsOut, TrainOut
 from app.security import get_current_customer
 from app.utils import utcnow
@@ -150,11 +152,19 @@ async def get_system_stats(
 
 
 async def run_training() -> None:
-    """Background task: fetch data and train the model.
+    """Background task: fetch data, train a fresh model, and atomically swap it
+    into service.
 
     The expensive parts (SVD fit, content-feature building, per-customer
     scoring) run via asyncio.to_thread so they NEVER block the event loop —
     the API stays responsive to other requests while the model retrains.
+
+    A brand-new engine instance is trained rather than mutating the live one in
+    place: that way a request that arrives mid-training never observes a
+    half-rebuilt matrix/index. Only once training AND stored-recommendation
+    refresh have both succeeded is the new engine swapped into the routers, and
+    it is persisted to disk (train() -> save()) so a process restart loads the
+    same fresh snapshot.
     """
     async with async_session_factory() as db:
         try:
@@ -210,25 +220,51 @@ async def run_training() -> None:
                 if col in products_df.columns:
                     products_df[col] = products_df[col].astype(str)
 
-            # Heavy CPU-bound model training, off the event loop.
-            await asyncio.to_thread(recommender_engine.train, events_df, products_df)
+            # Train into a fresh engine (never mutates the live one mid-read).
+            new_engine = RecommendationEngine(settings)
+            await asyncio.to_thread(new_engine.train, events_df, products_df)
+            if not new_engine._is_trained:
+                logger.warning("Training produced no usable model — keeping the current engine.")
+                return
 
-            # Store recommendations (scoring threaded, DB writes async)
-            await _store_recommendations(db)
+            # Store recommendations using the freshly trained engine.
+            await _store_recommendations(db, new_engine, events_df, products_df)
 
             await db.commit()
+
+            # Atomically swap the live engine with the trained snapshot so all
+            # subsequent inference uses exactly what was just trained.
+            _swap_engine(new_engine)
+
             logger.info("Model training completed successfully.")
         except Exception as e:
             await db.rollback()
             logger.error(f"Training failed: {e}", exc_info=True)
 
 
-async def _store_recommendations(db) -> None:
+def _swap_engine(engine) -> None:
+    """Replace the in-memory engine shared by the recommendation/admin routers."""
+    global recommender_engine
+    recommender_engine = engine
+    from app.routers import recommendations as recommendations_router
+
+    set_recommender_engine(engine)
+    recommendations_router.set_recommender_engine(engine)
+    logger.info("Live recommender engine swapped to freshly trained snapshot.")
+
+
+async def _store_recommendations(
+    db, engine, events_df: pd.DataFrame | None = None, products_df: pd.DataFrame | None = None
+) -> None:
     """Generate and persist recommendations for all consenting customers.
 
     All per-customer scoring (SVD inference + reason-code lookups) runs in a
     worker thread via asyncio.to_thread so a large customer base can't stall
     the API; only the DB deletes/inserts happen here (async).
+
+    The engine's live event data is passed through so customers absent from the
+    trained user matrix (new signups) are still served personalised recs via
+    the SVD live-projection path instead of the global popular list.
     """
     from sqlalchemy import delete
 
@@ -245,34 +281,43 @@ async def _store_recommendations(db) -> None:
     now = utcnow()
 
     # Pre-fetch everything the scoring thread needs (async, non-blocking).
-    products_result = await db.execute(select(Product))
-    all_products = products_result.scalars().all()
-    products_df = pd.DataFrame([
-        {"product_id": p.product_id, "category": p.category}
-        for p in all_products
-    ])
+    if products_df is None or len(products_df) == 0:
+        products_result = await db.execute(select(Product))
+        all_products = products_result.scalars().all()
+        products_df = pd.DataFrame([
+            {"product_id": p.product_id, "category": p.category}
+            for p in all_products
+        ])
+    else:
+        products_df = products_df[["product_id", "category"]].copy()
 
-    events_result = await db.execute(select(Event))
-    all_events = events_result.scalars().all()
-    events_data = [
-        {
-            "customer_id": e.customer_id,
-            "product_id": e.product_id,
-            "event_type": e.event_type,
-        }
-        for e in all_events
-    ]
-    events_df = pd.DataFrame(events_data) if events_data else pd.DataFrame()
+    if events_df is None or len(events_df) == 0:
+        events_result = await db.execute(select(Event))
+        all_events = events_result.scalars().all()
+        events_df = pd.DataFrame([
+            {
+                "customer_id": e.customer_id,
+                "product_id": e.product_id,
+                "event_type": e.event_type,
+            }
+            for e in all_events
+        ])
+    else:
+        events_df = events_df[["customer_id", "product_id", "event_type"]].copy()
 
     def _compute_all() -> dict:
         """Score + explain every consenting customer (CPU-bound, off-loop)."""
         computed = {}
         for customer in customers:
             try:
-                # Get recommendations (the engine handles filtering internally)
-                recs = recommender_engine.recommend(
+                # Get recommendations (the engine handles filtering internally).
+                # Passing the customer's own events enables SVD projection +
+                # behavior-aware cold start for customers not in the matrix.
+                recs = engine.recommend(
                     customer_id=customer.customer_id,
                     n=10,
+                    events_df=events_df,
+                    products_df=products_df,
                 )
 
                 if not recs:
@@ -287,22 +332,18 @@ async def _store_recommendations(db) -> None:
                 recs = sorted(seen.values(), key=lambda r: r["score"], reverse=True)
 
                 # Rich, interpretable reason codes from the customer's own events
-                if not events_df.empty and not products_df.empty:
-                    customer_events = events_df[
-                        events_df["customer_id"] == customer.customer_id
-                    ]
-                    for rec in recs:
-                        try:
-                            rc, rt = recommender_engine.get_reason_code(
-                                customer.customer_id,
-                                rec["product_id"],
-                                customer_events,
-                                products_df,
-                            )
-                            rec["reason_code"] = rc
-                            rec["reason_text"] = rt
-                        except Exception:
-                            pass
+                for rec in recs:
+                    try:
+                        rc, rt = engine.get_reason_code(
+                            customer.customer_id,
+                            rec["product_id"],
+                            events_df,
+                            products_df,
+                        )
+                        rec["reason_code"] = rc
+                        rec["reason_text"] = rt
+                    except Exception:
+                        pass
 
                 computed[customer.customer_id] = recs
             except Exception as e:

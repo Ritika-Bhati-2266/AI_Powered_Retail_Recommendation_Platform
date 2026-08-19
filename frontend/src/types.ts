@@ -58,6 +58,8 @@ export interface Recommendation extends Product {
   score: number;
   reason_code: string;
   reason_text: string;
+  /** Serving provenance: 'svd' | 'cold_start' | 'popular' */
+  source?: string;
 }
 
 export interface Offer {

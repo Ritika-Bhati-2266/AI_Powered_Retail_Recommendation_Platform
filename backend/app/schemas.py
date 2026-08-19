@@ -126,6 +126,10 @@ class RecommendationOut(BaseModel):
     score: float
     reason_code: str
     reason_text: str
+    # Debug/serving provenance: "svd" (matrix/model-driven incl. live SVD
+    # projection), "cold_start" (behaviour-aware category fallback), or
+    # "popular" (global popularity last resort).
+    source: str = "popular"
 
 
 # ── Offer ────────────────────────────────────────────────────────────────────
