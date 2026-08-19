@@ -2514,6 +2514,21 @@ async def seed_database(db: AsyncSession) -> None:
     await db.flush()
     logger.info(f"Generated {customer_count} customers.")
 
+    # ── Showcase customers (deterministic picks) ──
+    # A few seeded consumers get shaped activity + orders later so that every
+    # purchase-dependent segment (high_value, bargain_hunter, brand_loyalist)
+    # and the activity-dependent ones (power_user, lapsed) is reachable in the
+    # default demo. Picked by stable index so fresh seeds reproduce the full
+    # 8-segment story.
+    non_admin = [c for c in customers if (c.role or "customer") != "admin"]
+    _consenting = [c for c in non_admin if c.consent_given]
+    if len(_consenting) < 11:
+        _consenting = non_admin
+    lapsed_ids = {
+        _consenting[8].customer_id,
+        _consenting[9].customer_id,
+    }
+
     # ── Generate Events ──
     event_count = settings.EVENT_COUNT
     events_data = []
@@ -2539,6 +2554,10 @@ async def seed_database(db: AsyncSession) -> None:
         # Privacy guardrail: do not generate behavioural events for customers
         # who have not given consent for personalisation.
         if not customer.consent_given:
+            continue
+        # Showcase "lapsed" customers get only old activity (created separately
+        # after the loop) so their last event sits >90 days in the past.
+        if customer.customer_id in lapsed_ids:
             continue
         num_events = event_assignments[cust_idx]
 
@@ -2604,6 +2623,174 @@ async def seed_database(db: AsyncSession) -> None:
         await db.flush()
 
     logger.info(f"Generated {len(events_data)} events.")
+
+    # ── Seed realistic fake orders ────────────────────────────────────────────
+    # Previously the seed wrote zero Order rows, so the purchase-based segments
+    # (high_value, bargain_hunter, brand_loyalist) — and the power_user/lapsed
+    # activity profiles — could never surface in the demo even though the
+    # README promises all 8 segments. Shape a handful of showcase customers,
+    # plus ~18% of consenting consumers, with realistic orders: server-computed
+    # prices converted to each customer's display currency (multi-currency LTV),
+    # order dates spread over the last year, and one purchase event per line
+    # item exactly as routers/orders.place_order does.
+    from app.currency import convert_price
+    from app.models import Order, OrderItem
+
+    products_by_id = {p["product_id"]: p for p in products}
+
+    def _seed_order(
+        customer: Customer,
+        product_ids: list[str],
+        order_currency: str,
+        when: datetime,
+    ) -> None:
+        """Insert one net Order + line items + (consenting) purchase events."""
+        order = Order(
+            order_id=str(uuid.uuid4()),
+            customer_id=customer.customer_id,
+            total_amount=0.0,
+            currency=order_currency,
+            applied_offer_id=None,
+            discount_amount=0.0,
+            status="placed",
+            shipping_name=None,
+            shipping_address=None,
+            created_at=when,
+        )
+        db.add(order)
+        total = 0.0
+        for pid in product_ids:
+            prod = products_by_id[pid]
+            unit_price, _, _ = convert_price(prod["price"], order_currency)
+            subtotal = round(unit_price, 2)
+            total += subtotal
+            db.add(OrderItem(
+                order_item_id=str(uuid.uuid4()),
+                order_id=order.order_id,
+                product_id=pid,
+                product_name_snapshot=prod["name"],
+                quantity=1,
+                unit_price=unit_price,
+                subtotal=subtotal,
+            ))
+            if customer.consent_given:
+                db.add(Event(
+                    event_id=str(uuid.uuid4()),
+                    customer_id=customer.customer_id,
+                    product_id=pid,
+                    event_type="purchase",
+                    session_id=None,
+                    event_timestamp=when,
+                ))
+        order.total_amount = round(total, 2)
+
+    def _order_time() -> datetime:
+        # Realistic order dates: last 6-12 months.
+        return now - timedelta(days=random.randint(180, 365))
+
+    big_ticket = [p for p in products if p["price"] >= 200]
+    cheap_products = [p for p in products if p["price"] <= 25]
+    by_brand: dict[str, list[dict]] = {}
+    for p in products:
+        by_brand.setdefault(p["brand"] or "", []).append(p)
+    top_brand = next(
+        b for b, _lst in sorted(by_brand.items(), key=lambda kv: len(kv[1]), reverse=True) if b
+    )
+    brand_products = by_brand[top_brand]
+
+    # Showcase: guaranteed segment coverage on every fresh seed.
+    showcase_customers = []
+
+    # high_value: 7+ orders, net LTV comfortably over the $500 threshold.
+    for idx, currency_code in ((0, "USD"), (1, "INR")):
+        cust = _consenting[idx]
+        cust.currency = currency_code
+        showcase_customers.append(cust)
+        for _ in range(7):
+            _seed_order(cust, [random.choice(big_ticket)["product_id"]], currency_code, _order_time())
+
+    # bargain_hunter: 5 orders of sub-$30 catalogue items (avg price < $30).
+    for idx, currency_code in ((2, "EUR"), (3, "USD")):
+        cust = _consenting[idx]
+        cust.currency = currency_code
+        showcase_customers.append(cust)
+        for _ in range(5):
+            _seed_order(
+                cust,
+                [random.choice(cheap_products)["product_id"] for _ in range(random.randint(1, 2))],
+                currency_code,
+                _order_time(),
+            )
+
+    # brand_loyalist: 5 orders all from a single brand (>50% brand share).
+    for idx, currency_code in ((4, "JPY"), (5, "USD")):
+        cust = _consenting[idx]
+        cust.currency = currency_code
+        showcase_customers.append(cust)
+        for _ in range(5):
+            _seed_order(cust, [random.choice(brand_products)["product_id"]], currency_code, _order_time())
+
+    # power_user: >100 events in the last 30 days, plus a few orders.
+    for idx in (6, 7):
+        cust = _consenting[idx]
+        showcase_customers.append(cust)
+        for _ in range(150):
+            db.add(Event(
+                event_id=str(uuid.uuid4()),
+                customer_id=cust.customer_id,
+                product_id=random.choice(products)["product_id"],
+                event_type="page_view",
+                session_id=None,
+                event_metadata={"scroll_depth": random.randint(10, 100), "time_on_page": random.randint(5, 300)},
+                event_timestamp=now - timedelta(days=random.randint(0, 29)),
+            ))
+        for _ in range(3):
+            _seed_order(cust, [random.choice(products)["product_id"]], cust.currency, _order_time())
+
+    # lapsed: activity strictly older than 90 days, no orders.
+    for cust in (_consenting[8], _consenting[9]):
+        showcase_customers.append(cust)
+        for _ in range(8):
+            db.add(Event(
+                event_id=str(uuid.uuid4()),
+                customer_id=cust.customer_id,
+                product_id=random.choice(products)["product_id"],
+                event_type="page_view",
+                session_id=None,
+                event_metadata={"scroll_depth": random.randint(10, 100), "time_on_page": random.randint(5, 300)},
+                event_timestamp=base_date - timedelta(days=random.randint(10, 90)),
+            ))
+
+    # window_shopper: >50 page views over the last ~90 days, zero purchases.
+    ws_cust = _consenting[10]
+    showcase_customers.append(ws_cust)
+    for _ in range(60):
+        db.add(Event(
+            event_id=str(uuid.uuid4()),
+            customer_id=ws_cust.customer_id,
+            product_id=random.choice(products)["product_id"],
+            event_type="page_view",
+            session_id=None,
+            event_metadata={"scroll_depth": random.randint(10, 100), "time_on_page": random.randint(5, 300)},
+            event_timestamp=base_date + timedelta(days=random.randint(30, 89)),
+        ))
+
+    # General consumers: ~18% of seed customers get 1-8 realistic orders each.
+    showcase_ids = {c.customer_id for c in showcase_customers}
+    general_pool = [c for c in _consenting if c.customer_id not in showcase_ids]
+    random.shuffle(general_pool)
+    n_general = max(0, int(customer_count * 0.18) - len(showcase_customers))
+    for cust in general_pool[:n_general]:
+        order_currency = cust.currency or "USD"
+        for _ in range(random.randint(1, 8)):
+            _seed_order(
+                cust,
+                [random.choice(products)["product_id"] for _ in range(random.randint(1, 2))],
+                order_currency,
+                _order_time(),
+            )
+
+    await db.flush()
 
     # ── Assign segments using the canonical engine rules ──
     from app.offers import OfferEngine
