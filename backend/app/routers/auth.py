@@ -25,7 +25,13 @@ async def login(
     # In-memory rate limit: 5 attempts per 15 min per (IP, email). In a
     # multi-instance/production deployment replace this with a Redis-backed
     # limiter — see app/ratelimit.py.
-    check_login_rate(request.client.host, payload.email)
+    #
+    # request.client can be None when the ASGI scope omits client info (e.g.
+    # some proxies/lb configs strip it, and some test harnesses send no host).
+    # Fall back to a stable "unknown" key so rate limiting degrades gracefully
+    # (less precise bucketing) instead of crashing the whole endpoint.
+    client_host = request.client.host if request.client else "unknown"
+    check_login_rate(client_host, payload.email)
 
     result = await db.execute(
         select(Customer).where(func.lower(Customer.email) == payload.email.strip().lower())
@@ -53,7 +59,7 @@ async def login(
 
     await db.commit()
 
-    record_login_success(request.client.host, payload.email)
+    record_login_success(client_host, payload.email)
 
     return AuthResponse(
         access_token=token,

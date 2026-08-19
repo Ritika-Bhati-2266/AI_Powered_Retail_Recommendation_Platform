@@ -93,6 +93,25 @@ class TestAuth:
         })
         assert resp.status_code == 401
 
+    def test_login_with_none_client_does_not_crash(self, client, monkeypatch):
+        # Regression: request.client can be None when the ASGI scope omits
+        # client info (proxy/lb stripping it, some test harnesses). The login
+        # endpoint must degrade to an "unknown" rate-limit key instead of
+        # crashing on request.client.host.
+        from starlette.requests import Request
+
+        def _client_returns_none(self):
+            return None
+
+        monkeypatch.setattr(Request, "client", property(_client_returns_none))
+
+        resp = client.post("/api/auth/login", json={
+            "email": "admin@personalshop.com",
+            "password": settings.DEMO_PASSWORD,
+        })
+        assert resp.status_code == 200, resp.text
+        assert "access_token" in resp.json()
+
 
 class TestCustomerProfile:
     def test_get_customer_profile_success(self, client, customer):
