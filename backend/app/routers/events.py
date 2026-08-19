@@ -2,24 +2,49 @@
 Event ingestion endpoint.
 POST /api/events — ingest a behaviour event.
 """
+import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import async_session_factory, get_db
 from app.models import Customer, Event, Product
 from app.schemas import EventCreate, EventOut
 from app.security import get_current_customer
 from app.utils import utcnow
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(tags=["events"])
+
+
+async def _recompute_customer_segments(customer_id: str) -> None:
+    """Re-evaluate a customer's segment membership without blocking the ingest
+    request.
+
+    Scheduled as a FastAPI BackgroundTask on its own DB session (the request
+    session is closed once the response is sent). Runs in-process after the
+    response is delivered — an improvement over the previous synchronous
+    recompute, but still not a distributed task queue: a production deployment
+    should move this to a real scheduler/queue (APScheduler/Celery) as
+    documented in the README.
+    """
+    try:
+        from app.offers import OfferEngine
+
+        async with async_session_factory() as session:
+            await OfferEngine(session).assign_segments(customer_id)
+            await session.commit()
+    except Exception:  # background failure must not break the already-returned response
+        logger.exception("Background segment recompute failed for customer %s", customer_id)
 
 
 @router.post("/events", response_model=EventOut)
 async def ingest_event(
     event_data: EventCreate,
+    background_tasks: BackgroundTasks,
     auth: Customer = Depends(get_current_customer),
     db: AsyncSession = Depends(get_db),
 ):
@@ -78,13 +103,14 @@ async def ingest_event(
         event_timestamp=utcnow(),
     )
     db.add(event)
-    await db.flush()
+    # Persist the event before scheduling the background recompute so the
+    # background task (which opens its own session) is guaranteed to see it.
+    await db.commit()
 
     # Re-evaluate the customer's segment membership now that their behaviour has
-    # changed, so segments stay current. (Offers are recomputed at startup and
-    # via POST /api/admin/assign-offers.)
-    from app.offers import OfferEngine
-    await OfferEngine(db).assign_segments(event_data.customer_id)
-    await db.flush()
+    # changed — but in the background so the ingest response returns immediately
+    # instead of waiting on the metrics queries + segment writes. (Offers are
+    # recomputed at startup and via POST /api/admin/assign-offers.)
+    background_tasks.add_task(_recompute_customer_segments, event_data.customer_id)
 
     return EventOut(event_id=event.event_id)
