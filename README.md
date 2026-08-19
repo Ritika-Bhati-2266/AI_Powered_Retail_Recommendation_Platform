@@ -56,6 +56,7 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 - 8 predefined offers targeted to specific segments (e.g., "Welcome 15% Off" for new users, "VIP Exclusive: 25% Off" for high-value customers)
 - Automatic offer assignment on customer creation and daily batch refresh
 - **Individualized offers**: each customer's discount percentage and reason are computed from their own behaviour metrics (LTV, cart-abandon rate, engagement) — a dynamic **5–30%** band per offer
+- **Refresh cadence (honest)**: segments are re-evaluated on every event ingest; offers are (re)assigned at startup and via `POST /api/admin/assign-offers`. There is **no background scheduler** in this build — a production deployment should move segmentation, offer assignment and model retraining into a scheduled async job (e.g. APScheduler/Celery with a queue) instead of the synchronous request path described below.
 - Currency conversion (USD, INR, EUR, JPY) — prices and discounts convert server-side based on customer preference
 
 ### 3. Intelligent Product Search
@@ -77,6 +78,8 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 - **bcrypt password hashing** with tunable cost — no plaintext credentials are stored
 - **Bearer token is the source of identity**: `X-User-Email`-style headers are never trusted; every owner-scoped route re-verifies the token
 - **Role enforcement**: admin-only endpoints re-check the authenticated customer's role (no client-asserted role)
+- **Login rate limiting**: credential attempts are throttled per IP + email (5 attempts / 15 min → `429`). The limiter is in-memory for the demo; a production deployment must swap it for the Redis-backed limiter (the Redis integration point is already wired) or a distributed store like `slowapi`
+- **Startup guards**: in production, the app fails closed if `SECRET_KEY` is missing or falls back to the dev default, and warns loudly if `DEMO_PASSWORD` is left at the seeded default
 
 ### 6. Live Demo Mode
 - Browse the **full live product catalog** (760 products) with **no signup** — the demo loads real data from the public product APIs, no mock/hardcoded products
@@ -158,6 +161,8 @@ On first startup, the backend automatically:
 | `GET` | `/api/products/search?q=&category=` | Search products (synonym-aware) |
 | `GET` | `/api/products/categories` | All product categories |
 | `GET` | `/api/products/{id}` | Product detail |
+| `GET` | `/api/customers/{id}/data-export` | Right of access — download all held data (owner) |
+| `POST` | `/api/customers/{id}/forget` | Self-service right to forget — erase my data (owner) |
 | `GET` | `/api/admin/stats` | System statistics (segment distribution, consent rate) |
 | `POST` | `/api/admin/train` | Trigger model training (background) |
 | `POST` | `/api/admin/assign-offers` | Re-run offer assignment for all customers |
@@ -289,10 +294,15 @@ retail-personalisation/
 
 The system is designed for production scale:
 
+> **Honest scope note.** This is a college/demo prototype. It has been validated at **~1,000 customers / 760 products** against a lightweight SQLite store with in-process (single-instance) caching and an in-memory login rate limiter. The architecture is deliberately aligned with the target topology below, so the growth path is incremental rather than an unplanned rewrite — but the listed figures are the **design target**, not a claim that the demo build already operates at them.
+
+Design target:
+
 - **500K customers**, **20K SKUs**, **2M events/day**
 - **Storage**: PostgreSQL handles this comfortably with proper indexing (composite indexes on `(customer_id, event_type)` and `event_timestamp DESC`)
 - **Training**: TruncatedSVD with 50 components trains in minutes at this scale
-- **Recommendation serving**: Near-real-time via precomputed recommendations or live model inference
-- **Batch cycle**: Daily segment refresh + offer assignment is O(n) in customer count
+- **Recommendation serving**: Near-real-time via precomputed recommendations or live model inference. The live-inference path only ever scans that customer's own events (not the full event table)
+- **Batch cycle**: Daily segment refresh + offer assignment is O(n) in customer count — in production this moves to a scheduled async job rather than the synchronous demo path
 - **Caching**: Redis caches popular recommendations to reduce DB load
+- **Rate limiting**: in-memory in the demo; production uses the Redis-backed limiter (integration point is wired)
 - **Currency conversion**: Server-side with configurable rates, extendable to live forex APIs

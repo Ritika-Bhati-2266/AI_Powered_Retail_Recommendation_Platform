@@ -1,17 +1,19 @@
-fastapi
-uvicorn[standard]
-sqlalchemy>=2.0
-aiosqlite
-asyncpg
-alembic
-scikit-learn
-pandas
-numpy
-redis
-pydantic>=2.0
-pydantic-settings
-python-dotenv
-typing_extensions
-joblib
-PyJWT
+# Runtime dependencies — pinned to the exact versions validated in this
+# project. Bump deliberately and re-run `pytest` + `ruff check app` afterwards.
+fastapi==0.138.2
+uvicorn[standard]==0.49.0
+SQLAlchemy==2.0.51
+aiosqlite==0.22.1
+asyncpg==0.31.0
+alembic==1.18.5
+scikit-learn==1.9.0
+pandas==3.0.3
+numpy==2.5.0
+redis==8.0.1
+pydantic==2.13.4
+pydantic-settings==2.14.2
+python-dotenv==1.2.2
+typing_extensions==4.15.0
+joblib==1.5.3
+PyJWT==2.13.0
 bcrypt==5.0.0

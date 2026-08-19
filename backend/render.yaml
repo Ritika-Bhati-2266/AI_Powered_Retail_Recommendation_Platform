@@ -12,9 +12,19 @@ services:
         value: sqlite+aiosqlite:///./data/personalisation.db
       - key: PYTHON_VERSION
         value: 3.12.0
+      # Marks the deployment as production so the startup guards are active:
+      # a missing SECRET_KEY will fail startup instead of silently using the
+      # insecure dev fallback.
+      - key: ENVIRONMENT
+        value: production
       # REQUIRED: set as a secret in the Render dashboard. If missing the
       # dev-only SECRET_KEY fallback would be used for JWT signing.
       - key: SECRET_KEY
+        sync: false
+      # REQUIRED: set as a secret in the Render dashboard. The seeded admin
+      # account uses this password; leaving the documented default would expose
+      # the admin account to anyone who knows the repo's documented credentials.
+      - key: DEMO_PASSWORD
         sync: false
       # Comma-separated allowed CORS origins for your domain.
       - key: CORS_ORIGINS

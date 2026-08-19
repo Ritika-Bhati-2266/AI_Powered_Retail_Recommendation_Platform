@@ -223,6 +223,13 @@ export const apiClient = {
     );
   },
 
+  forgetAccount(customerId: string): Promise<{ status: string; message: string }> {
+    return request<{ status: string; message: string }>(
+      `/customers/${encodeURIComponent(customerId)}/forget`,
+      { method: 'POST' }
+    );
+  },
+
   getCurrencies(): Promise<Record<string, string>> {
     return request<Record<string, string>>('/customers/currencies');
   },

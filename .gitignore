@@ -28,6 +28,9 @@ venv/
 *.sqlite3
 *.pkl.fixbak
 
+# Trained model artifacts — never source-of-truth, regenerate via /api/admin/train
+*.pkl
+
 # SQLite runtime state (never commit WAL/SHM or live PID files)
 *.db-wal
 *.db-shm

@@ -477,6 +477,33 @@ async def export_customer_data(
     }
 
 
+@router.post("/customers/{customer_id}/forget")
+async def forget_my_account(
+    customer_id: str,
+    auth: Customer = Depends(require_owner),
+    db: AsyncSession = Depends(get_db),
+):
+    """Self-service GDPR/DPDP Right to Forget.
+
+    Any customer may erase their own data (owner-scoped, admin not required).
+    Reuses ConsentService.right_to_forget: deletes behavioural data, anonymises
+    order PII, and stamps `forgotten_at` so the caller's own bearer token is
+    invalidated immediately. The client should log the user out afterwards.
+    """
+    result = await db.execute(
+        select(Customer).where(Customer.customer_id == customer_id)
+    )
+    customer = result.scalar_one_or_none()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    consent_service = ConsentService(db)
+    await consent_service.right_to_forget(customer_id)
+    await db.commit()
+
+    return {"status": "forgotten", "message": "Your data has been erased. Log out and sign up again if you wish to return."}
+
+
 async def _get_category_preferences(customer_id: str, db: AsyncSession) -> list[str]:
     """Fetch stored category preferences for a customer."""
     result = await db.execute(

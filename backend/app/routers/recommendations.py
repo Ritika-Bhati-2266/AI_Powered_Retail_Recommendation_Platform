@@ -185,10 +185,18 @@ async def get_recommendations(
                     pass
                 return deduped
 
-        # Fallback: use the in-memory model to generate live recommendations
+        # Fallback: use the in-memory model to generate live recommendations.
+        # Collaborative scores come from the precomputed factor matrices, so the
+        # per-request event load only needs THIS customer's history (for the
+        # purchased-exclusion set and reason-code lookups). Loading the whole
+        # Event table per request would be O(all events) and collapse at
+        # production scale — stored recommendations from /api/admin/train are
+        # the preferred serving path.
         try:
             # Build events and products DataFrames for the recommender
-            events_result = await db.execute(select(Event))
+            events_result = await db.execute(
+                select(Event).where(Event.customer_id == customer_id)
+            )
             all_events = events_result.scalars().all()
             events_list = [
                 {

@@ -8,11 +8,15 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.config import settings
+from app.config import (
+    DEFAULT_DEMO_PASSWORD,
+    DEV_FALLBACK_SECRET,
+    settings,
+)
 from app.database import async_session_factory, create_tables, engine
 from app.offers import OfferEngine
 from app.routers import (
@@ -45,6 +49,20 @@ async def lifespan(app: FastAPI):
 
     # ── Startup ──
     logger.info("Starting Retail Hyper-Personalisation Engine...")
+
+    # Fail-closed auth hygiene checks (dev fallbacks must never ship to prod).
+    if settings.SECRET_KEY == DEV_FALLBACK_SECRET:
+        logger.warning(
+            "SECRET_KEY is the insecure dev fallback. Set SECRET_KEY in the "
+            "environment for any non-local deployment."
+        )
+    if settings.is_production and settings.DEMO_PASSWORD == DEFAULT_DEMO_PASSWORD:
+        logger.warning(
+            "DEMO_PASSWORD is the documented default '%s' — the seeded admin "
+            "account (admin@personalshop.com) uses it. Override DEMO_PASSWORD "
+            "and rotate the admin password before deploying anywhere shared.",
+            DEFAULT_DEMO_PASSWORD,
+        )
 
     # Ensure data directory exists (for SQLite)
     os.makedirs(os.path.join(os.path.dirname(__file__), "..", "data"), exist_ok=True)
@@ -104,6 +122,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Apply basic hardening headers to every response.
+
+    Content-Security-Policy is intentionally NOT set here: the SPA (charts
+    render inline SVG styles) needs 'unsafe-inline' style sources, so a strict
+    CSP would break the dashboard. Set one at your reverse proxy if required.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    return response
 
 # ── Import and register routers ──────────────────────────────────────────────
 

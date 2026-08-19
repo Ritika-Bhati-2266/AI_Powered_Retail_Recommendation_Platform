@@ -28,8 +28,9 @@ import {
   ShieldX,
   Download,
   Info,
+  Trash2,
 } from 'lucide-react';
-import { apiClient } from '../api/client';
+import { apiClient, tokenStore } from '../api/client';
 import ProductSearch from './ProductSearch';
 import PrivacyModal from './PrivacyModal';
 import { formatPrice } from '../utils/formatPrice';
@@ -754,6 +755,29 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
     }
   }, [customer.customer_id, showToast]);
 
+  const handleDeleteMyData = useCallback(async () => {
+    if (!window.confirm(
+      'Delete your account and all your data?\n\n' +
+      'This permanently erases your behaviour data, personalised recommendations, ' +
+      'offers, category preferences and personal details from your order history. ' +
+      'This cannot be undone.'
+    )) {
+      return;
+    }
+    setUpdatingConsent(true);
+    try {
+      await apiClient.forgetAccount(customer.customer_id);
+      showToast('Your data has been erased. Logging you out...', 'success');
+      tokenStore.clearAll();
+      onLogout();
+    } catch (err: any) {
+      const msg = (err?.message || '').replace(/^API error \d+:\s*/, '');
+      showToast(msg || 'Could not delete your data. Please try again.', 'error');
+    } finally {
+      setUpdatingConsent(false);
+    }
+  }, [customer.customer_id, onLogout, showToast]);
+
   useEffect(() => {
     let cancelled = false;
     setLoadingRecent(true);
@@ -925,6 +949,15 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
               >
                 <Download className="w-3.5 h-3.5" />
                 {exportingData ? 'Exporting...' : 'Export My Data'}
+              </button>
+              <button
+                onClick={handleDeleteMyData}
+                disabled={updatingConsent}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-rose-300 bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/30 rounded-lg transition-all disabled:opacity-50"
+                title="Erase your account and all your data (right to be forgotten)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {updatingConsent ? 'Deleting...' : 'Delete My Data'}
               </button>
               <button
                 onClick={handleConsentToggle}
