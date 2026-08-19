@@ -298,11 +298,63 @@ retail-personalisation/
 
 ## Scale Readiness
 
-The system is designed for production scale:
+### Verified against the real dataset
 
-> **Honest scope note.** This is a college/demo prototype. It has been validated at **~1,000 customers / 760 products** against a lightweight SQLite store with in-process (single-instance) caching and an in-memory login rate limiter. The architecture is deliberately aligned with the target topology below, so the growth path is incremental rather than an unplanned rewrite — but the listed figures are the **design target**, not a claim that the demo build already operates at them.
+Measured locally (same architecture as deployed: in-memory TruncatedSVD via
+scikit-learn, single-process uvicorn, single-writer SQLite with WAL) on the
+full real database — not just a handful of synthetic customers:
 
-Design target:
+| Metric | Measured value |
+|---|---|
+| Dataset verified | **560 customers** (266 with behavioural events), **760 products**, **5,777 events**, 269 consenting |
+| Model training (full retrain) | **~0.3 s** total (feature build ~0.11 s, SVD fit ~0.016 s, 50 components, 266×760 matrix, 1.06 MB `model.pkl`) |
+| Batch recommendation refresh (`/api/admin/train` store phase, 269 customers) | **~36 s** total — scoring ~17 s, SQLite delete+insert persist ~19 s |
+| Live recommendation GET (cold, sequential) | **p50 ~19 ms, p95 ~53 ms** |
+| Concurrent burst (43 simultaneous GETs, distinct customers) | **no errors, ~37 req/s, p50 ~735 ms, p95 ~1.1 s** |
+| `/api/admin/train` during 50 concurrent GETs | **no errors/timeouts**; training runs in background (~36 s) and reads degraded to **p50 ~1.9 s, p95 ~3.2 s**; engine swaps atomically on completion |
+| Offer assignment (`assign_offers`) | **~0.03 s** for 269 customers / 135 assignments |
+| Model RAM footprint | ~3 MB total (user factors 266×50, item factors 760×50, content vectors 760×131) |
+
+Correctness at this scale:
+
+- **266/266 event-having customers served personalised `svd` recs** (261 distinct
+  lists; at most 3 customers shared an identical list). No trace of the old
+  pre-fix symptom where everyone got one generic popular list.
+- **98.5%** of event-having customers have their dominant browsing category
+  inside the top-10 recs; **78.9%** have it as the #1 recommendation. The 4/266
+  exceptions are expected collaborative-filtering behaviour (customer bought
+  most of what they browsed, so remaining recs come from similar neighbours) —
+  not a correctness bug.
+- Customers with **no behavioural events** (294) correctly get the global
+  popularity list as the last resort; consenting signup-preference customers are
+  served `cold_start` instead.
+- Only customers with active consent (269) are written to
+  `recommendations`.
+
+### Honest ceiling (measured, not guessed)
+
+- The **recommendation model is not the bottleneck** at this scale: training is
+  ~0.3 s and the SVD factors fit in ~3 MB of RAM. Even at the 500K-customer /
+  20K-SKU design target, model RAM stays well under 200 MB and SVD refit is
+  estimated in seconds-to-minutes (not verified at that size).
+- The first real ceiling is the **batch refresh**: it costs **~0.13 s per
+  customer** (per-customer delete + insert + reason-code pass on single-writer
+  SQLite). Expected to scale roughly linearly → ~5 min at 5K customers, ~55 min
+  at 50K, several hours at 500K. A bulk-upsert + batched reason-coding would be
+  the lever here, not a rewrite.
+- The second ceiling is **concurrent live reads**: a single-instance SQLite
+  backend sustains **~30-40 reads/s with sub-second p95** up to ~50 simultaneous
+  requests. Beyond ~50 concurrent the p95 crosses 1 s, and a concurrent
+  `/admin/train` write burst pushes read p95 to ~3 s (still no errors at this
+  dataset size). Beyond ~a few hundred concurrent users, SQLite
+  single-writer contention and the per-recommendation product-enrichment queries
+  are what degrade first.
+- Caching: the recs cache requires **Redis** and silently no-ops without it, so
+  every local/demo GET hits the DB. A Redis-backed cache (or any in-process
+  cache) would materially lift the concurrent-read ceiling — the integration
+  point is already wired in `app/cache.py`.
+
+Design target (NOT a claim that this build already operates there):
 
 - **500K customers**, **20K SKUs**, **2M events/day**
 - **Storage**: PostgreSQL handles this comfortably with proper indexing (composite indexes on `(customer_id, event_type)` and `event_timestamp DESC`)
