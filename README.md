@@ -313,7 +313,7 @@ full real database — not just a handful of synthetic customers:
 | Concurrent burst (43 simultaneous GETs, distinct customers) | **no errors, ~37 req/s, p50 ~735 ms, p95 ~1.1 s** |
 | `/api/admin/train` during 50 concurrent GETs | **no errors/timeouts**; training runs in background (~30 s) and reads degraded to **p50 ~1.9 s, p95 ~3.2 s**; engine swaps atomically on completion |
 | Offer assignment (`assign_offers`) | **~0.03 s** for 259 customers / 125 assignments |
-| Model RAM footprint | ~1.2 MB total (user factors 258×50, item factors 760×50, content vectors 760×131, float64) |
+| Model RAM footprint | ~0.6 MB total (user factors 258×50, item factors 760×50, content vectors 760×131, float32) |
 
 Correctness at this scale:
 
@@ -334,7 +334,7 @@ Correctness at this scale:
 ### Honest ceiling (measured, not guessed)
 
 - The **recommendation model is not the bottleneck** at this scale: training is
-  ~0.1 s and the SVD factors fit in ~1.2 MB of RAM. Even at the 500K-customer /
+  ~0.1 s and the SVD factors fit in ~0.6 MB of RAM (float32). Even at the 500K-customer /
   20K-SKU design target, model RAM stays well under 200 MB and SVD refit is
   estimated in seconds-to-minutes (not verified at that size).
 - The first real ceiling is the **batch refresh**: it costs **~0.13 s per
