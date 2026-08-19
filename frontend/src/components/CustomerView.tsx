@@ -693,6 +693,19 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
     }
   }, [customer.customer_id, customer.currency, cartItems]);
 
+  const fetchRecommendations = useCallback(() => {
+    let cancelled = false;
+    setLoadingRecs(true);
+    setRecError(false);
+    apiClient.getRecommendations(customer.customer_id)
+      .then((data) => { if (!cancelled) setRecommendations(data); })
+      .catch(() => { if (!cancelled) setRecError(true); })
+      .finally(() => { if (!cancelled) setLoadingRecs(false); });
+    return () => { cancelled = true; };
+  }, [customer.customer_id]);
+
+  useEffect(fetchRecommendations, [fetchRecommendations]);
+
   const handleConsentToggle = useCallback(async () => {
     const target = !customer.consent_status;
     if (!target && !window.confirm('Withdraw consent for personalisation?\n\nBehavioural tracking will stop and personalised recommendations/offers will be disabled. You can re-enable consent at any time.')) {
@@ -707,6 +720,9 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
         showToast('Consent revoked. Personalisation has been turned off.', 'success');
       } else {
         showToast('Consent granted. Personalisation is now enabled.', 'success');
+        // Refresh recommendations immediately so the freshly re-enabled
+        // consent starts showing personalised picks without a manual reload.
+        fetchRecommendations();
       }
     } catch (err: any) {
       const msg = (err?.message || '').replace(/^API error \d+:\s*/, '');
@@ -714,7 +730,7 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
     } finally {
       setUpdatingConsent(false);
     }
-  }, [customer.customer_id, customer.consent_status, showToast]);
+  }, [customer.customer_id, customer.consent_status, fetchRecommendations, showToast]);
 
   const handleExportData = useCallback(async () => {
     setExportingData(true);
@@ -737,19 +753,6 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
       setExportingData(false);
     }
   }, [customer.customer_id, showToast]);
-
-  const fetchRecommendations = useCallback(() => {
-    let cancelled = false;
-    setLoadingRecs(true);
-    setRecError(false);
-    apiClient.getRecommendations(customer.customer_id)
-      .then((data) => { if (!cancelled) setRecommendations(data); })
-      .catch(() => { if (!cancelled) setRecError(true); })
-      .finally(() => { if (!cancelled) setLoadingRecs(false); });
-    return () => { cancelled = true; };
-  }, [customer.customer_id]);
-
-  useEffect(fetchRecommendations, [fetchRecommendations]);
 
   useEffect(() => {
     let cancelled = false;

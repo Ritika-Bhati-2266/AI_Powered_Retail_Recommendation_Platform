@@ -105,8 +105,19 @@ async def get_current_customer(
     # token iat against forgotten_at makes every pre-forget session unusable).
     if customer.forgotten_at is not None:
         issued_at = payload.get("iat")
-        if isinstance(issued_at, datetime) and issued_at.tzinfo is not None:
-            issued_at = issued_at.astimezone(UTC).replace(tzinfo=None)
+        if isinstance(issued_at, (int, float)):
+            # PyJWT decodes `iat` as a Unix timestamp (number), not a datetime.
+            # Convert to a naive-UTC datetime to compare with the DB value.
+            try:
+                issued_at = datetime.fromtimestamp(issued_at, tz=UTC).replace(tzinfo=None)
+            except (OverflowError, OSError, ValueError):
+                issued_at = None
+        elif isinstance(issued_at, datetime):
+            if issued_at.tzinfo is not None:
+                issued_at = issued_at.astimezone(UTC).replace(tzinfo=None)
+        else:
+            # Missing or malformed iat — treat conservatively as pre-forget.
+            issued_at = None
         if issued_at is None or issued_at < customer.forgotten_at:
             raise HTTPException(
                 status_code=401,
