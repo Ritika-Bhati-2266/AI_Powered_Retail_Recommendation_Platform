@@ -100,6 +100,18 @@ async def get_current_customer(
     customer = result.scalar_one_or_none()
     if not customer:
         raise HTTPException(status_code=401, detail="Account not found")
+    # If the account has been forgotten, reject any token issued before the
+    # forget (stateless JWTs can't be individually revoked, so comparing
+    # token iat against forgotten_at makes every pre-forget session unusable).
+    if customer.forgotten_at is not None:
+        issued_at = payload.get("iat")
+        if isinstance(issued_at, datetime) and issued_at.tzinfo is not None:
+            issued_at = issued_at.astimezone(UTC).replace(tzinfo=None)
+        if issued_at is None or issued_at < customer.forgotten_at:
+            raise HTTPException(
+                status_code=401,
+                detail="Session invalidated. This account has been forgotten.",
+            )
     return customer
 
 

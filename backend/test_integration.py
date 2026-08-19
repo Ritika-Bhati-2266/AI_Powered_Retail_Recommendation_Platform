@@ -8,6 +8,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import settings
 from app.main import app
 
 
@@ -42,7 +43,7 @@ def client():
 def admin_token(client):
     resp = client.post("/api/auth/login", json={
         "email": "admin@personalshop.com",
-        "password": "Customer@2030",
+        "password": settings.DEMO_PASSWORD,
     })
     assert resp.status_code == 200, resp.text
     return resp.json()["access_token"]

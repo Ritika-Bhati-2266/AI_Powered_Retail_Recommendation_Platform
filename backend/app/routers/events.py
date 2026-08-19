@@ -69,4 +69,11 @@ async def ingest_event(
     db.add(event)
     await db.flush()
 
+    # Re-evaluate the customer's segment membership now that their behaviour has
+    # changed, so segments stay current. (Offers are recomputed at startup and
+    # via POST /api/admin/assign-offers.)
+    from app.offers import OfferEngine
+    await OfferEngine(db).assign_segments(event_data.customer_id)
+    await db.flush()
+
     return EventOut(event_id=event.event_id)

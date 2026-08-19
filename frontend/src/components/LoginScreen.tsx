@@ -473,11 +473,11 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
           )}
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <button className="w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+            <button aria-label="Toggle theme" className="w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
               <Sun className="w-4 h-4 text-zinc-300" />
             </button>
 
-            <button className="relative w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+            <button aria-label="View cart" className="relative w-10 h-10 rounded-xl bg-zinc-800/50 border border-zinc-700/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
               <ShoppingCart className="w-4 h-4 text-zinc-300" />
             </button>
 
@@ -538,7 +538,7 @@ export default function LoginScreen({ onLogin, onEnterDemo }: LoginScreenProps) 
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-8 md:gap-12 max-w-3xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 md:gap-12 max-w-3xl mx-auto">
             {[
               { icon: Sparkles, label: 'Smart Picks', desc: 'Personalized picks refresh every time you browse', accent: 'text-amber-400', bg: 'bg-zinc-800/30' },
               { icon: ShoppingBag, label: 'Curated Shop', desc: 'Handpicked from 20K+ products across 8 categories', accent: 'text-emerald-400', bg: 'bg-zinc-800/30' },

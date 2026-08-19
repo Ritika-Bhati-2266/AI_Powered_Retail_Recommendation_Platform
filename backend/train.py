@@ -1,12 +1,17 @@
 """Run training directly to debug background task issues."""
-import sys; sys.path.insert(0, '.')
+import sys
+
+sys.path.insert(0, ".")
+
 import asyncio
+
 import pandas as pd
+from sqlalchemy import select
+
 from app.config import settings
 from app.database import async_session_factory
+from app.models import Customer, Event, Product
 from app.recommender import RecommendationEngine
-from app.models import Event, Product, Customer
-from sqlalchemy import select
 
 
 async def train():

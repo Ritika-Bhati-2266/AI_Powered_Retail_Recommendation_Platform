@@ -65,14 +65,14 @@ A production-grade, full-stack e-commerce platform with hyper-personalized produ
 
 ### 4. Privacy & Consent (GDPR / DPDP Act)
 - **Consent-gated**: All personalisation requires explicit opt-in
-- **Right to forget**: Deletes all behavioural data while keeping a minimal audit record
+- **Right to forget**: Deletes behavioural data and category preferences, anonymises order PII, and keeps only a minimal compliance record
 - **Data export**: Customers can download a complete copy of their behavioural data (GDPR access rights / DPDP)
 - **No sensitive attributes**: All features are behavioural only — no age, gender, location, or demographics
 - **Audit trail**: Full consent_log with action, regulator (GDPR/DPDP), and timestamp
 - **Transparent reason codes**: Every recommendation explains why it was made — no black boxes
 
 ### 5. Security Hardening
-- **Environment-based secrets**: JWT `SECRET_KEY` and the MCP signature secret are read from the environment (no hardcoded production secrets)
+- **Environment-based secrets**: JWT `SECRET_KEY` is read from the environment (no hardcoded production secrets)
 - **Restricted CORS allowlist**: defaults to local dev origins only (not `*`); extend `CORS_ORIGINS` in the environment if you need additional origins
 - **bcrypt password hashing** with tunable cost — no plaintext credentials are stored
 - **Bearer token is the source of identity**: `X-User-Email`-style headers are never trusted; every owner-scoped route re-verifies the token
@@ -148,7 +148,7 @@ On first startup, the backend automatically:
 | `POST` | `/api/events` | Ingest behaviour event (page_view, purchase, add_to_cart, etc.) |
 | `POST` | `/api/customers` | Create a new customer (returns 201) |
 | `GET` | `/api/customers/search?q=` | Search customers by name or email |
-| `GET` | `/api/customers/by-email?email=` | Lookup customer by email (login) |
+| `GET` | `/api/customers/by-email?email=` | Admin-only customer lookup by email |
 | `GET` | `/api/customers/{id}` | Customer profile with metrics + segments |
 | `PATCH` | `/api/customers/{id}` | Update customer settings (e.g., currency) |
 | `GET` | `/api/customers/{id}/recommendations` | Top 10 personalised recs (consent-gated) |
@@ -251,7 +251,6 @@ retail-personalisation/
 │   │   │   ├── orders.py         # Order placement + history + detail
 │   │   │   ├── insights.py       # Recently viewed + continue shopping
 │   │   │   └── admin.py          # Train, stats, right to forget
-│   │   └── mcp/                  # MCP OAuth + JWT signature auth (sales-assistant MCP server)
 │   ├── data/                     # Model checkpoints + SQLite DB
 │   ├── scripts/
 │   │   ├── start_backend.ps1     # Canonical backend start (kills stale, starts, waits for health)

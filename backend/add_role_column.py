@@ -1,14 +1,17 @@
 """Migration: add role column to existing customers and seed admin user."""
 import asyncio
-import sys
 import os
+import sys
 import uuid
+
 sys.path.insert(0, os.path.dirname(__file__))
+
+from sqlalchemy import select, text
 
 from app.database import async_session_factory, engine
 from app.models import Customer
-from sqlalchemy import select, text
 from app.utils import utcnow
+
 
 async def main():
     # 1. Add column if it doesn't exist (SQLite)
@@ -29,11 +32,11 @@ async def main():
         null_role_customers = result.scalars().all()
         for c in null_role_customers:
             c.role = "customer"
-        
+
         # Check if admin user exists
         result_admin = await db.execute(select(Customer).where(Customer.email == "admin@personalshop.com"))
         admin = result_admin.scalar_one_or_none()
-        
+
         now = utcnow()
         if not admin:
             admin = Customer(
@@ -50,7 +53,7 @@ async def main():
         else:
             admin.role = "admin"
             print("Updated existing admin@personalshop.com user to have 'admin' role.")
-            
+
         await db.commit()
 
     print("Migration complete.")

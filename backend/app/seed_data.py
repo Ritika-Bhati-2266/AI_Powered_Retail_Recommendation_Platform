@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models import Customer, CustomerSegment, Event, Product
+from app.models import Customer, Event, Product
 from app.security import hash_password
 from app.utils import utcnow
 
@@ -2423,28 +2423,6 @@ def generate_event_time(base_date: datetime, day_offset: int) -> datetime:
     return event_date.replace(hour=hour, minute=minute, second=second, microsecond=0)
 
 
-def get_segments_for_customer(metrics: dict) -> list[str]:
-    """Determine which segments a customer belongs to based on their metrics."""
-    assigned = []
-    if metrics.get("lifetime_value", 0) > 500 and metrics.get("purchases", 0) > 5:
-        assigned.append("high_value")
-    if metrics.get("avg_price", 999) < 30 and metrics.get("purchases", 0) > 3:
-        assigned.append("bargain_hunter")
-    if metrics.get("days_since_first", 999) < 30:
-        assigned.append("new_user")
-    if metrics.get("days_since_last", 0) > 90:
-        assigned.append("lapsed")
-    if metrics.get("cart_events", 0) > metrics.get("purchases", 0) and metrics.get("cart_events", 0) > 2:
-        assigned.append("cart_abandoner")
-    if metrics.get("top_brand_pct", 0) > 0.5 and metrics.get("purchases", 0) > 3:
-        assigned.append("brand_loyalist")
-    if metrics.get("views", 0) > 50 and metrics.get("purchases", 0) == 0:
-        assigned.append("window_shopper")
-    if metrics.get("events_30d", 0) > 100:
-        assigned.append("power_user")
-    return assigned
-
-
 def generate_price_tier(price: float) -> str:
     if price < 30:
         return "budget"
@@ -2556,9 +2534,6 @@ async def seed_database(db: AsyncSession) -> None:
     for i in range(abs(diff)):
         event_assignments[i % assign_len] += 1 if diff > 0 else -1
 
-    customer_product_affinities = {}  # customer_id -> list of product_id (preferred products)
-    customer_purchase_history = {}  # customer_id -> list of product_id (purchased products)
-
     for cust_idx, customer in enumerate(customers):
         customer_id = customer.customer_id
         # Privacy guardrail: do not generate behavioural events for customers
@@ -2571,9 +2546,6 @@ async def seed_database(db: AsyncSession) -> None:
         preferred_categories = random.choices(list(CATEGORIES.keys()), k=random.randint(1, 3))
         # Get products in preferred categories
         preferred_products = [p for p in products if p["category"] in preferred_categories]
-
-        purchased_products = []
-        viewed_products = set()
 
         for _ev_idx in range(num_events):
             # Determine event type based on weights
@@ -2603,10 +2575,8 @@ async def seed_database(db: AsyncSession) -> None:
             metadata = None
             if event_type == "page_view":
                 metadata = {"scroll_depth": random.randint(10, 100), "time_on_page": random.randint(5, 300)}
-                viewed_products.add(product_id)
             elif event_type == "purchase":
                 metadata = {"quantity": random.randint(1, 5), "total_price": product["price"] * random.randint(1, 5)}
-                purchased_products.append(product_id)
             elif event_type in ("add_to_cart", "remove_from_cart"):
                 metadata = {"quantity": random.randint(1, 3)}
             elif event_type in ("email_open", "email_click"):
@@ -2624,9 +2594,6 @@ async def seed_database(db: AsyncSession) -> None:
                 "event_timestamp": event_time,
             })
 
-        customer_product_affinities[customer_id] = list(viewed_products)
-        customer_purchase_history[customer_id] = purchased_products
-
     # Insert events in batches
     batch_size = 500
     for i in range(0, len(events_data), batch_size):
@@ -2638,38 +2605,14 @@ async def seed_database(db: AsyncSession) -> None:
 
     logger.info(f"Generated {len(events_data)} events.")
 
-    # ── Compute metrics and assign segments ──
+    # ── Assign segments using the canonical engine rules ──
     from app.offers import OfferEngine
     offer_engine = OfferEngine(db)
 
     segment_assignments = 0
     for customer in customers:
-        metrics = await offer_engine._compute_metrics(customer.customer_id)
-
-        # Add derived metrics for segment evaluation
-        metrics["purchases"] = len(customer_purchase_history.get(customer.customer_id, []))
-        metrics["views"] = len(customer_product_affinities.get(customer.customer_id, []))
-
-        # Calculate top brand percentage
-        purchase_pids = customer_purchase_history.get(customer.customer_id, [])
-        if purchase_pids:
-            brand_counts = {}
-            for pid in purchase_pids:
-                p = next((pr for pr in products if pr["product_id"] == pid), None)
-                if p and p.get("brand"):
-                    brand_counts[p["brand"]] = brand_counts.get(p["brand"], 0) + 1
-            if brand_counts:
-                metrics["top_brand_pct"] = max(brand_counts.values()) / len(purchase_pids)
-
-        segments = get_segments_for_customer(metrics)
-        now = utcnow()
-        for segment in segments:
-            db.add(CustomerSegment(
-                customer_id=customer.customer_id,
-                segment=segment,
-                assigned_at=now,
-            ))
-            segment_assignments += 1
+        segments = await offer_engine.assign_segments(customer.customer_id)
+        segment_assignments += len(segments)
 
     logger.info(f"Assigned {segment_assignments} segments across customers.")
 

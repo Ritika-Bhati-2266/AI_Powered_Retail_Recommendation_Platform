@@ -35,6 +35,7 @@ class Customer(Base):
     email = Column(String(255), nullable=False, unique=True, index=True)
     consent_given = Column(Boolean, default=False, nullable=False)
     consent_timestamp = Column(DateTime, nullable=True)
+    forgotten_at = Column(DateTime, nullable=True)
     currency = Column(String(3), default="USD", nullable=False)
     role = Column(String(50), default="customer", nullable=False)
     password_hash = Column(String(255), nullable=True)
@@ -194,13 +195,3 @@ class OrderItem(Base):
     subtotal = Column(Float, nullable=False, default=0.0)
 
     order = relationship("Order", back_populates="order_items")
-
-
-class User(Base):
-    """OAuth-authenticated user for MCP access control."""
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    sub = Column(String(255), unique=True, nullable=False)
-    email = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=utcnow, nullable=False)

@@ -9,11 +9,14 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
+    Customer,
     CustomerCategoryPreference,
     CustomerOffer,
     CustomerSegment,
     Event,
     Offer,
+    Order,
+    OrderItem,
     Product,
 )
 from app.utils import utcnow
@@ -156,7 +159,24 @@ class OfferEngine:
         """
         Evaluate a customer against all segment definitions and assign
         matching segments. Returns list of assigned segment names.
+
+        This is the single canonical implementation of segment evaluation —
+        seed data, signup and event ingestion all route through here so the
+        same rules and metrics always apply.
+
+        Non-consenting customers and admin accounts are never segmented.
         """
+        # Guard: only shopper accounts with active consent can be segmented.
+        result = await self.db.execute(
+            select(Customer).where(Customer.customer_id == customer_id)
+        )
+        customer = result.scalar_one_or_none()
+        if customer is None or customer.role != "customer" or not customer.consent_given:
+            await self.db.execute(
+                delete(CustomerSegment).where(CustomerSegment.customer_id == customer_id)
+            )
+            return []
+
         # Gather customer metrics
         metrics = await self._compute_metrics(customer_id)
         assigned_segments = []
@@ -192,6 +212,10 @@ class OfferEngine:
         if metrics.get("events_30d", 0) > 100:
             assigned_segments.append("power_user")
 
+        # A brand-new shopper with no behaviour events yet is a new user.
+        if metrics.get("total_events", 0) == 0:
+            assigned_segments.append("new_user")
+
         # Persist segment assignments
         # First clear old ones
         await self.db.execute(
@@ -222,6 +246,7 @@ class OfferEngine:
         total_events = len(events)
         if total_events == 0:
             return {
+                "total_events": 0,
                 "total_views": 0,
                 "purchase_count": 0,
                 "purchase_events": 0,
@@ -249,18 +274,20 @@ class OfferEngine:
 
         events_30d = len([e for e in events if e.event_timestamp and e.event_timestamp >= thirty_days_ago])
 
-        # Lifetime value from purchases
-        lifetime_value = 0.0
+        # Lifetime value — true spend derived from order line-item snapshots
+        # (quantity × unit price), matching the value reported by the customer
+        # profile endpoint rather than summing catalogue prices.
+        lv_result = await self.db.execute(
+            select(OrderItem.quantity, OrderItem.unit_price)
+            .select_from(OrderItem)
+            .join(Order, Order.order_id == OrderItem.order_id)
+            .where(Order.customer_id == customer_id)
+        )
+        lifetime_value = sum((qty or 0) * (price or 0) for qty, price in lv_result.all())
+
         purchase_product_ids = [ev.product_id for ev in purchase_events if ev.product_id]
 
-        if purchase_product_ids:
-            prod_result = await self.db.execute(
-                select(Product).where(Product.product_id.in_(purchase_product_ids))
-            )
-            products = prod_result.scalars().all()
-            lifetime_value = sum(p.price for p in products)
-
-        # Average price purchased
+        # Average price purchased (from the products actually purchased)
         avg_price = 0.0
         if purchase_product_ids:
             prod_result = await self.db.execute(
@@ -286,6 +313,7 @@ class OfferEngine:
                 top_brand_pct = top_brand_count / len(purchase_product_ids)
 
         return {
+            "total_events": total_events,
             "total_views": len(view_events),
             "purchase_count": len(purchase_events),
             "purchase_events": len(purchase_events),

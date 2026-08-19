@@ -12,6 +12,7 @@ import {
   ShieldX,
 } from 'lucide-react';
 import { formatPrice } from '../utils/formatPrice';
+import { formatSegmentLabel } from '../utils/formatSegmentLabel';
 import type { CustomerFull } from '../types';
 
 interface CustomerProfileProps {
@@ -19,25 +20,19 @@ interface CustomerProfileProps {
 }
 
 const segmentColors: Record<string, string> = {
-  'high_value': 'bg-amber-900/40 text-amber-300 border border-amber-700/40',
-  'loyal': 'bg-emerald-900/40 text-emerald-300 border border-emerald-700/40',
-  'at_risk': 'bg-red-900/40 text-red-300 border border-red-700/40',
-  'new': 'bg-blue-900/40 text-blue-300 border border-blue-700/40',
-  'bargain_hunter': 'bg-purple-900/40 text-purple-300 border border-purple-700/40',
-  'window_shopper': 'bg-cyan-900/40 text-cyan-300 border border-cyan-700/40',
-  'whale': 'bg-pink-900/40 text-pink-300 border border-pink-700/40',
-  'dormant': 'bg-zinc-700/40 text-zinc-300 border border-zinc-600/40',
+  high_value: 'bg-amber-900/40 text-amber-300 border border-amber-700/40',
+  bargain_hunter: 'bg-purple-900/40 text-purple-300 border border-purple-700/40',
+  new_user: 'bg-blue-900/40 text-blue-300 border border-blue-700/40',
+  lapsed: 'bg-zinc-700/40 text-zinc-300 border border-zinc-600/40',
+  cart_abandoner: 'bg-orange-900/40 text-orange-300 border border-orange-700/40',
+  brand_loyalist: 'bg-violet-900/40 text-violet-300 border border-violet-700/40',
+  window_shopper: 'bg-cyan-900/40 text-cyan-300 border border-cyan-700/40',
+  power_user: 'bg-red-900/40 text-red-300 border border-red-700/40',
 };
 
 function getSegmentColor(segment: string): string {
   const key = segment.toLowerCase().replace(/\s+/g, '_');
   return segmentColors[key] || 'bg-indigo-900/40 text-indigo-300 border border-indigo-700/40';
-}
-
-function formatSegmentLabel(segment: string): string {
-  return segment
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export default function CustomerProfile({ customer }: CustomerProfileProps) {

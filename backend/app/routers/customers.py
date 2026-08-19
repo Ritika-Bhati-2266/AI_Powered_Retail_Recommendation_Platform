@@ -36,7 +36,7 @@ from app.schemas import (
     CustomerUpdate,
     SegmentOut,
 )
-from app.security import get_current_customer, hash_password, require_admin, require_owner
+from app.security import hash_password, require_admin, require_owner
 from app.utils import get_price_tier, utcnow
 
 router = APIRouter(tags=["customers"])
@@ -83,12 +83,16 @@ async def create_customer(
     try:
         db.add(customer)
 
-        # Assign new_user segment immediately (bypasses metrics-based evaluation)
-        db.add(CustomerSegment(
-            customer_id=customer_id,
-            segment="new_user",
-            assigned_at=now,
-        ))
+        # Assign new_user segment immediately (bypasses metrics-based
+        # evaluation) — but only for consenting accounts, mirroring the guard
+        # in OfferEngine.assign_segments so non-consenting customers stay
+        # unsegmented.
+        if payload.consent_given:
+            db.add(CustomerSegment(
+                customer_id=customer_id,
+                segment="new_user",
+                assigned_at=now,
+            ))
 
         # Assign offers matching the new_user segment
         result = await db.execute(
@@ -100,7 +104,7 @@ async def create_customer(
             )
         )
         welcome_offer = result.scalar_one_or_none()
-        if welcome_offer:
+        if payload.consent_given and welcome_offer:
             db.add(CustomerOffer(
                 customer_id=customer_id,
                 offer_id=welcome_offer.offer_id,
@@ -166,10 +170,10 @@ async def create_customer(
 @router.get("/customers/by-email", response_model=CustomerOut)
 async def get_customer_by_email(
     email: str = Query(..., description="Customer email address"),
-    auth: Customer = Depends(get_current_customer),
+    auth: Customer = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    """Look up a customer by email. Used for customer-facing login."""
+    """Admin-only lookup of a customer by email. Self-service login uses /api/auth/login."""
     result = await db.execute(
         select(Customer).where(func.lower(Customer.email) == email.strip().lower())
     )
@@ -411,6 +415,7 @@ async def export_customer_data(
             "email": customer.email,
             "consent_status": customer.consent_given,
             "consent_timestamp": customer.consent_timestamp,
+            "forgotten_at": customer.forgotten_at,
             "currency": customer.currency,
             "role": customer.role,
             "created_at": customer.created_at,

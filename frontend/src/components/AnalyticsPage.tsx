@@ -22,6 +22,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
+import { formatSegmentLabel } from '../utils/formatSegmentLabel';
 import type { SystemStats } from '../types';
 
 const SEGMENT_COLORS: Record<string, string> = {
@@ -37,12 +38,6 @@ const SEGMENT_COLORS: Record<string, string> = {
 
 function getSegmentColor(segment: string): string {
   return SEGMENT_COLORS[segment] || '#a855f7';
-}
-
-function formatSegmentLabel(segment: string): string {
-  return segment
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 const CustomTooltip = ({ active, payload }: any) => {
@@ -110,7 +105,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-zinc-100">System Analytics</h2>
           <p className="text-sm text-zinc-500 mt-1">
@@ -154,7 +149,7 @@ export default function AnalyticsPage() {
       )}
 
       {loading && !stats && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4 space-y-2">
               <div className="skeleton h-4 w-20" />
@@ -166,7 +161,7 @@ export default function AnalyticsPage() {
 
       {stats && (
         <>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Users className="w-4 h-4 text-blue-400" />
@@ -252,7 +247,7 @@ export default function AnalyticsPage() {
                 </p>
               </div>
             ) : (
-              <div className="flex gap-6">
+              <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
                 <div className="flex-1" style={{ height: 320 }}>
                   {chartType === 'pie' ? (
                     <ResponsiveContainer width="100%" height="100%">
@@ -322,7 +317,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 {chartType === 'pie' && (
-                  <div className="w-56 shrink-0 space-y-2">
+                  <div className="w-full lg:w-56 shrink-0 space-y-2">
                     {chartData.map((entry) => (
                       <div
                         key={entry.segment}
@@ -359,7 +354,7 @@ export default function AnalyticsPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Gift className="w-4 h-4 text-amber-400" />

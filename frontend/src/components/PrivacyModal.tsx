@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { X, ShieldCheck, Eye, Trash2, Database, Lock } from 'lucide-react';
 
 interface PrivacyModalProps {
@@ -28,11 +29,19 @@ const sections = [
   {
     icon: Trash2,
     title: 'Your right to delete',
-    body: 'You can request that your behaviour data be erased ("right to forget"). We delete events, recommendations, segment assignments and offer assignments, and switch off personalisation. A minimal account record plus a consent audit trail is retained for legal compliance.',
+    body: 'You can request that your behaviour data be erased ("right to forget"). We delete events, recommendations, segment assignments, offer assignments and your category preferences, and we strip personal details such as your shipping name and address from your order history. Only an anonymised account record, your anonymised purchases and a consent audit trail are retained for legal and accounting compliance.',
   },
 ];
 
 export default function PrivacyModal({ onClose }: PrivacyModalProps) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
@@ -51,6 +60,7 @@ export default function PrivacyModal({ onClose }: PrivacyModalProps) {
             <p className="text-xs text-zinc-500 mt-0.5">How PersonalShop handles your data and your rights.</p>
           </div>
           <button
+            aria-label="Close privacy information"
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all"
           >

@@ -91,6 +91,7 @@ _ADDITIVE_CUSTOMER_COLUMNS = [
     ("role", "role VARCHAR(50) DEFAULT 'customer' NOT NULL", "role VARCHAR(50) DEFAULT 'customer' NOT NULL"),
     ("currency", "currency VARCHAR(3) DEFAULT 'USD' NOT NULL", "currency VARCHAR(3) DEFAULT 'USD' NOT NULL"),
     ("password_hash", "password_hash VARCHAR(255)", "password_hash VARCHAR(255)"),
+    ("forgotten_at", "forgotten_at DATETIME", "forgotten_at TIMESTAMP"),
 ]
 
 

@@ -172,8 +172,9 @@ export const apiClient = {
     return request<Product[]>(path);
   },
 
-  getProduct(productId: string): Promise<Product> {
-    return request<Product>(`/products/${encodeURIComponent(productId)}`);
+  getProduct(productId: string, customerId?: string): Promise<Product> {
+    const params = customerId ? `?customer_id=${encodeURIComponent(customerId)}` : '';
+    return request<Product>(`/products/${encodeURIComponent(productId)}${params}`);
   },
 
   getProductCategories(): Promise<string[]> {

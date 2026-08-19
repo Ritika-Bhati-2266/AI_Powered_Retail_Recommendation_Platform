@@ -552,7 +552,8 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
   }, [cartItems]);
 
   const handleAddToCart = useCallback((product: Product | Recommendation) => {
-    apiClient.trackEvent(customer.customer_id, 'add_to_cart', product.product_id, sessionId);
+    apiClient.trackEvent(customer.customer_id, 'add_to_cart', product.product_id, sessionId)
+      .catch(() => {});
     setCartItems((prev) => {
       const next = new Map(prev);
       const existing = next.get(product.product_id);
@@ -646,7 +647,8 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
 
   const handleProductClick = useCallback((product: Product | Recommendation) => {
     setSelectedProduct(product);
-    apiClient.trackEvent(customer.customer_id, 'page_view', product.product_id, sessionId);
+    apiClient.trackEvent(customer.customer_id, 'page_view', product.product_id, sessionId)
+      .catch(() => {});
     setRecentlyViewed((prev) => {
       const next = prev.filter((p) => p.product_id !== product.product_id);
       return [product, ...next].slice(0, 10);
@@ -670,12 +672,26 @@ export default function CustomerView({ customer: initialCustomer, onLogout }: Cu
       setLoadingRecs(true);
       const data = await apiClient.getRecommendations(customer.customer_id);
       setRecommendations(data);
+
+      // Re-fetch cart products under the new currency so the cart total and
+      // line prices re-render with the freshly-converted amounts + symbols.
+      const refreshed = await Promise.all(
+        Array.from(cartItems.entries()).map(async ([pid, item]) => {
+          try {
+            const fresh = await apiClient.getProduct(pid, customer.customer_id);
+            return [pid, { ...item, product: fresh }] as const;
+          } catch {
+            return [pid, item] as const;
+          }
+        })
+      );
+      setCartItems(new Map(refreshed));
     } catch {
       // ignore
     } finally {
       setUpdatingCurrency(false);
     }
-  }, [customer.customer_id, customer.currency]);
+  }, [customer.customer_id, customer.currency, cartItems]);
 
   const handleConsentToggle = useCallback(async () => {
     const target = !customer.consent_status;

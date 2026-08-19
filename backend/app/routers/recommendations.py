@@ -62,17 +62,8 @@ async def get_recommendations(
     db: AsyncSession = Depends(get_db),
 ):
     """Get top 10 personalised recommendations for a customer."""
-    # Try cache first
-    cache_key = f"recs:{customer_id}"
-    cached = await cache_get(cache_key)
-    if cached is not None:
-        try:
-            data = json.loads(cached)
-            return [RecommendationOut(**item) for item in data]
-        except Exception:
-            pass
-
-    # 1. Check consent
+    # 1. Check consent BEFORE the cache: a revoked consent must never receive
+    #    cached personalisation from Redis.
     consent_service = ConsentService(db)
     has_consent = await consent_service.check_consent(customer_id)
     if not has_consent:
@@ -91,14 +82,24 @@ async def get_recommendations(
 
     customer_currency = customer.currency or "USD"
 
-    # 3. Check event count for this customer (used to decide cold-start vs model)
+    # 3. Try cache first
+    cache_key = f"recs:{customer_id}"
+    cached = await cache_get(cache_key)
+    if cached is not None:
+        try:
+            data = json.loads(cached)
+            return [RecommendationOut(**item) for item in data]
+        except Exception:
+            pass
+
+    # 4. Check event count for this customer (used to decide cold-start vs model)
     event_count_result = await db.execute(
         select(func.count(Event.event_id))
         .where(Event.customer_id == customer_id)
     )
     customer_event_count = event_count_result.scalar() or 0
 
-    # 4. Cold-start: use signup category preferences for new customers with no events
+    # 5. Cold-start: use signup category preferences for new customers with no events
     if customer_event_count == 0:
         cat_pref_result = await db.execute(
             select(CustomerCategoryPreference.category)
@@ -137,7 +138,7 @@ async def get_recommendations(
                 if result:
                     return _deduplicate_recommendations(result)
 
-    # 5. Try model-based recommendations (only for customers with events)
+    # 6. Try model-based recommendations (only for customers with events)
     if customer_event_count > 0 and recommender_engine and recommender_engine._is_trained:
         # Check if we have stored recommendations
         stored = await db.execute(
@@ -240,7 +241,7 @@ async def get_recommendations(
             import logging
             logging.getLogger(__name__).warning(f"Live recommendation failed: {e}")
 
-    # 6. Fallback: trending products (by view count in last 7 days)
+    # 7. Fallback: trending products (by view count in last 7 days)
     seven_days_ago = utcnow() - timedelta(days=7)
     trending_result = await db.execute(
         select(
@@ -281,5 +282,5 @@ async def get_recommendations(
             ))
         return _deduplicate_recommendations(result)
 
-    # 7. Empty fallback
+    # 8. Empty fallback
     return []

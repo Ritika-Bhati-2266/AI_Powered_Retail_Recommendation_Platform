@@ -17,6 +17,15 @@ from app.serializers import serialize_product
 router = APIRouter(tags=["insights"])
 
 
+async def _ensure_consent(customer: Customer) -> None:
+    """Behaviour-driven insights must be unavailable once consent is absent."""
+    if not customer.consent_given:
+        raise HTTPException(
+            status_code=403,
+            detail="Customer has not given consent for personalisation. Insights are unavailable.",
+        )
+
+
 @router.get(
     "/customers/{customer_id}/recently-viewed",
     response_model=list[ProductSearchResult],
@@ -35,6 +44,8 @@ async def get_recently_viewed(
     customer = result.scalar_one_or_none()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
+
+    await _ensure_consent(customer)
 
     customer_currency = customer.currency or "USD"
 
@@ -99,6 +110,8 @@ async def get_customer_wishlist(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
+    await _ensure_consent(customer)
+
     customer_currency = customer.currency or "USD"
 
     events = await db.execute(
@@ -154,6 +167,8 @@ async def get_continue_shopping(
     customer = result.scalar_one_or_none()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
+
+    await _ensure_consent(customer)
 
     customer_currency = customer.currency or "USD"
 

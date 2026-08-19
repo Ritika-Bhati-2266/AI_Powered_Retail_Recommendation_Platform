@@ -1,12 +1,18 @@
 """Test _store_recommendations logic directly."""
-import sys; sys.path.insert(0, '.')
+import sys
+
+sys.path.insert(0, ".")
+
 import asyncio
+
 import pandas as pd
+from sqlalchemy import delete, func, select
+
 from app.config import settings
-from app.recommender import RecommendationEngine
 from app.database import async_session_factory
-from app.models import Customer, Recommendation, Event, Product
-from sqlalchemy import select, delete, func
+from app.models import Customer, Event, Product, Recommendation
+from app.recommender import RecommendationEngine
+
 
 async def test():
     # Load the trained model
@@ -20,7 +26,7 @@ async def test():
 
     async with async_session_factory() as db:
         # Get consenting customers
-        result = await db.execute(select(Customer).where(Customer.consent_given == True))
+        result = await db.execute(select(Customer).where(Customer.consent_given))
         customers = result.scalars().all()
         print(f"\nConsenting customers: {len(customers)}")
 
@@ -38,9 +44,9 @@ async def test():
 
         # Now try the full _store_recommendations flow
         print("\n--- Testing _store_recommendations flow ---")
-        
+
         # Get all customers with consent
-        result = await db.execute(select(Customer).where(Customer.consent_given == True))
+        result = await db.execute(select(Customer).where(Customer.consent_given))
         customers = result.scalars().all()
         if not customers:
             print("No consenting customers!")
@@ -48,7 +54,7 @@ async def test():
 
         # Clear old recommendations
         await db.execute(delete(Recommendation))
-        print(f"Cleared old recommendations")
+        print("Cleared old recommendations")
 
         from app.utils import utcnow
         now = utcnow()

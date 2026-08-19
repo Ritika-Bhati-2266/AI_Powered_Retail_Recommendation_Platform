@@ -107,15 +107,18 @@ async def place_order(
             subtotal=subtotal,
         ))
 
-        # Emit a purchase event so recommender/segment engine sees this activity
-        db.add(Event(
-            event_id=str(uuid.uuid4()),
-            customer_id=customer_id,
-            product_id=product.product_id,
-            event_type="purchase",
-            session_id=None,
-            event_timestamp=now,
-        ))
+        # Emit a purchase event so the recommender/segment engine sees this
+        # activity — but only for consenting customers (privacy guardrail:
+        # behaviour events are never tracked without opt-in).
+        if customer.consent_given:
+            db.add(Event(
+                event_id=str(uuid.uuid4()),
+                customer_id=customer_id,
+                product_id=product.product_id,
+                event_type="purchase",
+                session_id=None,
+                event_timestamp=now,
+            ))
 
     order.total_amount = round(total, 2)
     await db.commit()

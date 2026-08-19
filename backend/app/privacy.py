@@ -6,7 +6,16 @@ import uuid
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ConsentLog, Customer, CustomerOffer, CustomerSegment, Event, Recommendation
+from app.models import (
+    ConsentLog,
+    Customer,
+    CustomerCategoryPreference,
+    CustomerOffer,
+    CustomerSegment,
+    Event,
+    Order,
+    Recommendation,
+)
 from app.utils import utcnow
 
 
@@ -42,10 +51,15 @@ class ConsentService:
         - Delete all recommendations
         - Delete all segment assignments
         - Delete all customer_offers
+        - Delete category preferences captured at signup
+        - Anonymize order PII (shipping name/address) while retaining the
+          anonymized transactional history (totals, line items, dates)
         - Set consent_given = False
         - Anonymize the account's personal data (name, email) and remove the
           password so no PII is retained and the email address is freed for a
           future re-registration
+        - Stamp `forgotten_at` so any pre-forget bearer tokens are invalidated
+          and the forgotten state is auditable
         - Log the 'forgotten' action
         - The customer record itself stays (minimal record that right was exercised)
         - Prior consent_log history is preserved as an audit trail
@@ -83,15 +97,31 @@ class ConsentService:
             delete(CustomerOffer).where(CustomerOffer.customer_id == customer_id)
         )
 
+        # 5. Delete category preferences captured at signup (personal preference data)
+        await self.db.execute(
+            delete(CustomerCategoryPreference).where(CustomerCategoryPreference.customer_id == customer_id)
+        )
+
+        # 6. Anonymize order PII. Orders are kept so the anonymized transaction
+        #    history (totals, line items) can still feed analytics, but the
+        #    shipping name/address — the only personal fields on an order — are
+        #    stripped so no PII survives a right-to-forget.
+        await self.db.execute(
+            update(Order)
+            .where(Order.customer_id == customer_id)
+            .values(shipping_name=None, shipping_address=None)
+        )
+
         # Note: consent_log is intentionally NOT deleted here.
         # It contains no behavioural/personal data (just action + regulator +
         # timestamp) and controllers are generally expected to retain proof
         # that consent was given/withdrawn (e.g. GDPR Art. 7(1)).
 
-        # 5. Set consent_given = False and anonymize the account: strip the
+        # 7. Set consent_given = False and anonymize the account: strip the
         #    name, replace the email with an unrouteable placeholder so the
-        #    original address is released for a future signup, and remove the
-        #    password hash so the forgotten account can no longer be used.
+        #    original address is released for a future signup, remove the
+        #    password hash so the forgotten account can no longer be used, and
+        #    stamp forgotten_at to invalidate pre-forget sessions.
         await self.db.execute(
             update(Customer)
             .where(Customer.customer_id == customer_id)
@@ -101,10 +131,11 @@ class ConsentService:
                 password_hash=None,
                 consent_given=False,
                 consent_timestamp=now,
+                forgotten_at=now,
             )
         )
 
-        # 6. Log the 'forgotten' action, tagged with the actual applicable regulator
+        # 8. Log the 'forgotten' action, tagged with the actual applicable regulator
         forgotten_log = ConsentLog(
             id=str(uuid.uuid4()),
             customer_id=customer_id,

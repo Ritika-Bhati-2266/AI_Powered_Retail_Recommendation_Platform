@@ -136,6 +136,7 @@ function ProductCard({ product, customerId, onAddToCart, onWishlist, onClick }: 
         )}
 
         <button
+          aria-label="Toggle wishlist"
           onClick={() => onWishlist?.(product)}
           className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-8 h-8 rounded-full bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center hover:bg-rose-500/80" style={{ right: discount > 0 ? undefined : '12px', top: discount > 0 ? '48px' : '12px' }}>
           <Heart className="w-4 h-4 text-zinc-300" />
@@ -168,6 +169,7 @@ function ProductCard({ product, customerId, onAddToCart, onWishlist, onClick }: 
             )}
           </div>
           <button
+            aria-label="Add to cart"
             onClick={() => onAddToCart?.(product)}
             className="w-9 h-9 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 flex items-center justify-center transition-all group/add">
             <ShoppingCart className="w-4 h-4 text-purple-400 group-hover/add:text-purple-300 transition-colors" />

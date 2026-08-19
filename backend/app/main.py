@@ -14,7 +14,6 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import async_session_factory, create_tables, engine
-from app.mcp import router as mcp_router
 from app.offers import OfferEngine
 from app.routers import (
     admin,
@@ -117,7 +116,6 @@ app.include_router(products.router, prefix="/api")
 app.include_router(orders.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(insights.router, prefix="/api")
-app.include_router(mcp_router.router)
 
 
 # ── Health Check ─────────────────────────────────────────────────────────────

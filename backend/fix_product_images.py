@@ -1,13 +1,15 @@
 """One-time migration: update existing products with real picsum.photos image URLs."""
 import asyncio
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
+
+from sqlalchemy import select
 
 from app.database import async_session_factory, create_tables
 from app.models import Product
 from app.seed_data import get_product_image_url
-from sqlalchemy import select
 
 
 async def main():
@@ -17,7 +19,7 @@ async def main():
         products = result.scalars().all()
 
         count = 0
-        for idx, product in enumerate(products):
+        for product in products:
             new_url = get_product_image_url(product.product_id, product.category or "", product.subcategory or "", product.name or "")
             if product.image_url != new_url:
                 product.image_url = new_url

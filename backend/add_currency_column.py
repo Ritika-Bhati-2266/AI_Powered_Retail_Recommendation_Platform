@@ -1,13 +1,14 @@
 """Migration: add currency column to existing customers."""
 import asyncio
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.dirname(__file__))
 
-from app.database import async_session_factory, engine, Base
-from app.models import Customer
-from app.currency import get_available_currencies
 from sqlalchemy import select, text
+
+from app.database import async_session_factory, engine
+from app.models import Customer
 
 
 async def main():

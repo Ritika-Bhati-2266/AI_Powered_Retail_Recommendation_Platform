@@ -116,6 +116,7 @@ function DemoProductCard({ product, index, onClick, onAddToCart, onWishlist, isW
           </span>
         )}
         <button
+          aria-label="Toggle wishlist"
           onClick={(e) => { e.stopPropagation(); onWishlist?.(product); }}
           className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-8 h-8 rounded-full bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center hover:bg-rose-500/80" style={{ right: discount > 0 ? undefined : '12px', top: discount > 0 ? '48px' : '12px' }}>
           <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500 text-rose-500' : 'text-zinc-300'}`} />
@@ -138,6 +139,7 @@ function DemoProductCard({ product, index, onClick, onAddToCart, onWishlist, isW
             {originalPrice > product.price && <span className="text-xs text-zinc-600 line-through">{formatPrice(originalPrice, product.symbol)}</span>}
           </div>
           <button
+            aria-label="Add to cart"
             onClick={(e) => { e.stopPropagation(); onAddToCart?.(product); }}
             className="w-9 h-9 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 flex items-center justify-center transition-all group/add">
             <ShoppingCart className="w-4 h-4 text-purple-400 group-hover/add:text-purple-300 transition-colors" />
@@ -155,6 +157,14 @@ function DemoProductDetailModal({ product, onClose, onAddToCart, onWishlist, isW
   const rating = product.rating ?? 0;
   const discount = product.discount_percent ?? 0;
   const originalPrice = product.original_price ?? product.price;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   return (
     <div
@@ -184,6 +194,7 @@ function DemoProductDetailModal({ product, onClose, onAddToCart, onWishlist, isW
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           </div>
           <button
+            aria-label="Close product details"
             onClick={onClose}
             className="absolute top-3 right-3 w-8 h-8 rounded-full bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center hover:bg-zinc-700/80 transition-all"
           >
@@ -248,6 +259,14 @@ function DemoCartPanel({ items, onClose, onRemove }: { items: Map<string, { prod
   const itemArray = Array.from(items.values());
   const total = itemArray.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
@@ -262,7 +281,7 @@ function DemoCartPanel({ items, onClose, onRemove }: { items: Map<string, { prod
             <ShoppingCart className="w-5 h-5 text-purple-400" />
             Demo Cart ({itemArray.reduce((c, i) => c + i.quantity, 0)})
           </h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
+          <button aria-label="Close cart" onClick={onClose} className="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all">
             <X className="w-4 h-4 text-zinc-400" />
           </button>
         </div>
@@ -317,6 +336,14 @@ function DemoCartPanel({ items, onClose, onRemove }: { items: Map<string, { prod
 }
 
 function DemoWishlistPanel({ items, onClose, onRemove, onView }: { items: Product[]; onClose: () => void; onRemove: (productId: string) => void; onView: (product: Product) => void; }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
@@ -332,6 +359,7 @@ function DemoWishlistPanel({ items, onClose, onRemove, onView }: { items: Produc
             Demo Wishlist ({items.length})
           </h2>
           <button
+            aria-label="Close wishlist"
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-zinc-800/50 flex items-center justify-center hover:bg-zinc-700/50 transition-all"
           >
